@@ -13,5 +13,5 @@ This module will support the work with the vTiger REST API.
 	$accessKey =Get-MD5Hash -tokenstring ($token + $userKey)  
 	$sessionname = Get-vtLogin -uri $uri -contenttype $contentType -username $username -accessKey $accessKey  
 
-  Get-vtListtype -uri $uri -contenttype $contentType -sessionName $sessionname  
+  	Get-vtListtype -uri $uri -contenttype $contentType -sessionName $sessionname  
 	Get-vtFieldlist -uri $uri -contenttype $contentType -sessionName $sessionName -module 'Services' 
