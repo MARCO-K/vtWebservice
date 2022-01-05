@@ -37,7 +37,9 @@
   }
   process { 
     $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $challenge -ContentType $contenttype
-    $token = $result.result.token
+    if($result) {
+      $token = $result.result.token
+    }
   }
   end {
     $token

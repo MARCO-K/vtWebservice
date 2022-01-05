@@ -26,12 +26,11 @@
       .OUTPUTS
       The cmdlet will output a new session token as string.
   #>
-  [CmdletBinding()]
   param(
-    [string]$uri,
-    [string]$contenttype,
-    [string]$username,
-    [string]$accessKey
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$contenttype,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$username,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$accessKey
   )
   begin { 
     $login = @{
@@ -42,7 +41,9 @@
   }
   process {
     $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $login -ContentType $contenttype
-    $sessionName = $result.result.sessionName
+    if($result) { 
+      $sessionName = $result.result.sessionName
+    }
   }
   end {
     $sessionName
