@@ -26,22 +26,37 @@
   #>
   [CmdletBinding()]
   param(
-    [string]$uri,
-    [string]$contenttype,
-    [string]$sessionName
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
+    [string]$contenttype = 'application/x-www-form-urlencoded',
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName
   )
   begin {
-
+    Write-PSFMessage -Level Verbose -Message 'Starting to retrieve list types...'
     $list = @{
       operation   = 'listtypes'
       sessionName = $sessionName
     }
   }
   process {
-    $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $list -ContentType $contenttype
-    $listTypes = $result.result.types
+    try { 
+      $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $list -ContentType $contenttype
+      if($result -and $result.success -eq $true)
+      { 
+        $listTypes = $result.result.types
+      }
+      else 
+      {
+        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
+        $result = $result.error.message
+      }
+    }
+    catch 
+    {
+      Write-PSFMessage -Level Error -Message 'Something went really wrong...'
+    }
   }
   end {
+    Write-PSFMessage -Level Verbose -Message 'Output list types...'
     $listTypes
   }
 }
