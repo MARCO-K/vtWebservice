@@ -2,6 +2,8 @@
 This module will support the work with the vTiger REST API.
 
 ## script samples
+*** basics ***  
+
 	$uri = 'http://localhost/webservice.php'  
 	$username ='webservice'  
 	$userKey = 'somekey'  
@@ -13,7 +15,8 @@ This module will support the work with the vTiger REST API.
 	$accessKey =Get-MD5Hash -tokenstring ($token + $userKey)  
 	$sessionname = Get-vtLogin -uri $uri -contenttype $contentType -username $username -accessKey $accessKey  
   
-*** do some stuff ***
+*** do some stuff ***  
+
   	Get-vtListtype -uri $uri -contenttype $contentType -sessionName $sessionname  
 	Get-vtFieldlist -uri $uri -contenttype $contentType -sessionName $sessionName -module 'Services' 
 	New-vtRecordEntry -uri $uri -contenttype $contenttype -sessionName $sessionName -module $module -record $record
