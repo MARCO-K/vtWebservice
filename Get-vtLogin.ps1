@@ -33,17 +33,20 @@
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$accessKey
   )
   begin { 
-    $login = @{
+    Write-PSFMessage -Level Output -Message 'Starting to login ...'
+	$login = @{
       operation = 'login'
       username  = $username
       accessKey = $accessKey
     }
   }
   process {
-    $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $login -ContentType $contenttype
+    #try
+	$result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $login -ContentType $contenttype
     if($result) { 
       $sessionName = $result.result.sessionName
     }
+	#catch
   }
   end {
     $sessionName
