@@ -27,13 +27,13 @@
   #>
   [CmdletBinding()]
   param(
-    [string]$uri,
-    [string]$contenttype,
-    [string]$sessionName,
-    [string]$querystring
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$contenttype,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$querystring
   )
   begin {
-
+    Write-PSFMessage -Level Verbose -Message 'Starting to query records...' -FunctionName 'Get-vtQueryrecord'
     $query = @{
       sessionName = $sessionName
       operation   = 'query'
@@ -41,10 +41,26 @@
     }
   }
   process {
-    $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $query -ContentType $contenttype
-    $result = $result.result 
+    try { 
+      Write-PSFMessage -Level Verbose -Message "Query records... $querystring"
+      $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $query -ContentType $contenttype
+      if($result -and $result.success -eq $true) {
+        $result = $result.result
+      }
+      elseif($result.success -eq $false) {
+        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
+        $result = $result.error.message
+      }
+      else {
+         Write-PSFMessage -Level Error -Message "Something went wrong... $($result.error.message)"
+      } 
+    }
+    catch {
+      Write-PSFMessage -Level Error -Message "Something went really wrong..."
+    } 
   }
   end {
+    Write-PSFMessage -Level Verbose -Message 'Output the query records...' -FunctionName 'Get-vtQueryrecord'
     $result
   }
 }
