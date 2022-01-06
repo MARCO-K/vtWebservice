@@ -28,27 +28,40 @@
   #>
   param(
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$contenttype,
+    [string]$contenttype = 'application/x-www-form-urlencoded',
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$username,
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$accessKey
   )
   begin { 
-    Write-PSFMessage -Level Output -Message 'Starting to login ...'
-	$login = @{
+    Write-PSFMessage -Level Verbose -Message 'Starting to login ...'
+    $login = @{
       operation = 'login'
       username  = $username
       accessKey = $accessKey
     }
   }
   process {
-    #try
-	$result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $login -ContentType $contenttype
-    if($result) { 
-      $sessionName = $result.result.sessionName
+    try 
+    {
+      Write-PSFMessage -Level Verbose -Message 'Trying to login...' 
+      $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $login -ContentType $contenttype
+      if($result -and $result.success -eq $true) 
+      {
+        $sessionName = $result.result.sessionName
+      }
+      else 
+      {
+        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
+        $result = $result.error.message
+      }
     }
-	#catch
+    catch 
+    {
+      Write-PSFMessage -Level Error -Message 'Something went really wrong...'
+    }
   }
   end {
+    Write-PSFMessage -Level Verbose -Message 'Output the new session name...'
     $sessionName
   }
 }
