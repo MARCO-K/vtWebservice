@@ -25,7 +25,7 @@
   #>
   param(
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript( {
-          if (Test-NetConnection -ComputerName $_ -InformationLevel Quiet) 
+          if (Invoke-WebRequest -Uri $_) 
           {
             return $true 
           }
