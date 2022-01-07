@@ -32,16 +32,25 @@
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
     [string]$contenttype = 'application/x-www-form-urlencoded',
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory)][ValidateSet('Campaigns','Invoice','SalesOrder','PurchaseOrder','Quotes','Vendors','PriceBooks','Calendar','Leads','Accounts','Contacts','Potentials','Products','Documents','Emails','Events','Users','Services','ModComments','Assets','Groups','Currency','DocumentFolders','CompanyDetails','LineItem','Tax','ProductTaxes')]
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript({
+          if( $_ -in (Get-vtListtype -uri $uri -sessionName $sessionName)) 
+          {
+            return $true
+          }
+          else 
+          {
+            throw "$_ is not a valid module name."
+          }
+    } )]
     [string]$module,
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript( {
           if($_ | ConvertFrom-Json) 
           {
-            $true 
+            $true
           }
           else 
           {
-            throw "$_ not valid JSON" 
+            throw "$_ not valid JSON"
           }
     }  )]
     [string]$record
