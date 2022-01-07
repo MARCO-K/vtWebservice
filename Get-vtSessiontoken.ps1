@@ -25,7 +25,7 @@
   #>
   param(
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript( {
-          if (Test-NetConnection $_ -InformationLevel Quiet) 
+          if (Test-NetConnection -ComputerName $_ -InformationLevel Quiet) 
           {
             return $true 
           }
