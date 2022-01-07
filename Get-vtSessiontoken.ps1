@@ -24,7 +24,17 @@
       The cmdlet will output a new session token as string.
   #>
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript( {
+          if (Test-NetConnection $_ -InformationLevel Quiet) 
+          {
+            return $true 
+          }
+          else 
+          {
+            throw "$_ destination unreachable" 
+          }   
+    } )]
+    [string]$uri,
     [string]$contenttype = 'application/x-www-form-urlencoded',
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$username
   )
