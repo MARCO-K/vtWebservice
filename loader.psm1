@@ -15,3 +15,5 @@
 . $PSScriptRoot\Get-vtQueryrecord.ps1
 . $PSScriptRoot\Get-vtRetrieverecord.ps1
 . $PSScriptRoot\Get-vtSessiontoken.ps1
+. $PSScriptRoot\Import-vtRecord.ps1
+. $PSScriptRoot\New-vtRecord.ps1
