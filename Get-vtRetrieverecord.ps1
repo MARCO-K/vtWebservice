@@ -17,7 +17,7 @@
       The name of actual sessionName.
       
       .PARAMETER recordid
-      The ID of the specified record.
+      The ID of one or more records.
 
       .EXAMPLE
       Get-vtRetrieverecord -Sessionname $session -uri $uri -sessionName $sessionName -recordid $recordid
