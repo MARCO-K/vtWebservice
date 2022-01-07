@@ -2,10 +2,10 @@
 {
   <#
       .SYNOPSIS
-      This cmdlet will retrieve one based on its ID.
+      This cmdlet will retrieve one or more records based on record ID.
 
       .DESCRIPTION   
-      This cmdlet will retrieve one based on its ID.
+      This cmdlet will retrieve one or more records based on record ID.
 
       .PARAMETER uri
       The name of actual uri.
