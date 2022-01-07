@@ -25,14 +25,14 @@
       .OUTPUTS
       The cmdlet will output  one or more records.
   #>
-  [CmdletBinding()]
   param(
-    [string]$uri,
-    [string]$contenttype,
-    [string]$sessionName,
-    [string]$recordid
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
+    [string]$contenttype = 'application/x-www-form-urlencoded',
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$recordid
   )
   begin {
+    Write-PSFMessage -Level Verbose -Message "Starting to retrieve a record for ID: $recordid..."
     $retrieve = @{
       operation   = 'retrieve'
       sessionName = $sessionName
@@ -40,9 +40,27 @@
     }
   }
   process {
-    $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $retrieve -ContentType $contenttype
+    try 
+    { 
+      Write-PSFMessage -Level Verbose -Message 'Retrieving the record...'
+      $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $retrieve -ContentType $contenttype
+      if($result -and $result.success -eq $true) 
+      {
+        $result = $result.result
+      }
+      else 
+      {
+        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
+        $result = $result.error.message
+      }
+    }
+    catch 
+    {
+      Write-PSFMessage -Level Error -Message 'Something went really wrong...'
+    }
   }
   end {
-    $result.result
+    Write-PSFMessage -Level Verbose -Message 'Output the record...'
+    $result
   }
 }
