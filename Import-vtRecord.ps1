@@ -66,7 +66,7 @@
         $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $create -ContentType $contenttype
         if($result -and $result.success -eq $true)
         {
-          $result = $result.result
+          #$result = $result.result
           $result
         }
         else 

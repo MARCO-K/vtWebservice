@@ -54,7 +54,7 @@
       $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $update -ContentType $contenttype
       if($result -and $result.success -eq $true)
       {
-        $result = $result.result
+        $result
       }
       else 
       {
