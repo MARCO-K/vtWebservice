@@ -24,17 +24,7 @@
       The cmdlet will output a new session token as string.
   #>
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript( {
-          if (Invoke-WebRequest -Uri $_) 
-          {
-            return $true 
-          }
-          else 
-          {
-            throw "$_ destination unreachable" 
-          }   
-    } )]
-    [string]$uri,
+    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
     [string]$contenttype = 'application/x-www-form-urlencoded',
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$username
   )
