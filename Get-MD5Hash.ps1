@@ -1,5 +1,24 @@
-﻿function Get-MD5Hash
+﻿
+function Get-MD5Hash
 {
+  <#
+  .SYNOPSIS
+  Calculates the MD5 hash value of a given string.
+
+  .DESCRIPTION
+  The Get-MD5Hash function calculates the MD5 hash value of a given string using the MD5CryptoServiceProvider class from the System.Security.Cryptography namespace. It takes a mandatory parameter, $tokenstring, which represents the input string to be hashed. The function returns the MD5 hash value as a string.
+
+  .PARAMETER tokenstring
+  The input string to be hashed.
+
+  .EXAMPLE
+  Get-MD5Hash -tokenstring "Hello, World!"
+  5eb63bbbe01eeed093cb22bb8f5acdc3
+
+  .NOTES
+  This is for internal use only.
+  This function requires the System.Security.Cryptography and System.Text namespaces.
+  #>
   param(
     [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$tokenstring
   )
