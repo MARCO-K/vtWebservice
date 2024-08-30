@@ -1,71 +1,89 @@
-﻿function Get-vtListtype
-{
+﻿function Get-vtListtype {
   <#
-      .SYNOPSIS
-      This cmdlet will get all available list types of vtiger.
+  .SYNOPSIS
+  Retrieves all available list types from vtiger.
 
-      .DESCRIPTION   
-      This cmdlet will get all available list types of vtiger.
+  .DESCRIPTION
+  This function retrieves all available list types from the vtiger CRM system using the provided API endpoint.
 
-      .PARAMETER uri
-      The name of actual uri.
+  .PARAMETER Uri
+  The URI of the vtiger API endpoint.
 
-      .PARAMETER contenttype
-      The name of actual contenttype.
+  .PARAMETER ContentType
+  The content type for the API request. Defaults to 'application/x-www-form-urlencoded'.
 
-      .PARAMETER sessionName
-      The name of actual sessionName.
-      
+  .PARAMETER SessionName
+  The name of the current session.
 
+  .EXAMPLE
+  Get-vtListtype -Uri 'https://your.vtiger.com/webservice.php' -SessionName 'YourSessionToken'
 
-      .EXAMPLE
-      Get-vtListtype -Sessionname $session -uri $uri -sessionName $sessionName
-
-      .OUTPUTS
-      The cmdlet will output all available list types.
+  .OUTPUTS
+  An array of strings representing the available list types.
   #>
+
   [CmdletBinding()]
+  [OutputType([string[]])]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SessionName
   )
+
   begin {
     Write-PSFMessage -Level Verbose -Message 'Starting to retrieve list types...'
-    $list = @{
+    $listParams = @{
       operation   = 'listtypes'
-      sessionName = $sessionName
+      sessionName = $SessionName
     }
   }
+
   process {
     try { 
-      $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $list -ContentType $contenttype
-      if($result -and $result.success -eq $true)
-      { 
-        $listTypes = $result.result.types
+      Write-PSFMessage -Level Verbose -Message 'Sending request to retrieve list types...'
+      $invokeParams = @{
+        Uri         = $Uri
+        Method      = 'GET'
+        Body        = $listParams
+        ContentType = $ContentType
+        ErrorAction = 'Stop'
       }
-      else 
-      {
-        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-        $result = $result.error.message
+      $result = Invoke-RestMethod @invokeParams
+
+      if ($result.success -eq $true) { 
+        Write-PSFMessage -Level Verbose -Message 'Successfully retrieved list types.'
+        $result.result.types
+      } else {
+        $errorMessage = if ($result.error.PSObject.Properties['message']) { 
+          $result.error.message 
+        } else { 
+          "Unknown error occurred" 
+        }
+        Write-PSFMessage -Level Warning -Message "Failed to retrieve list types. Error: $errorMessage"
+        throw $errorMessage
       }
-    }
-    catch 
-    {
-      [Management.Automation.ErrorRecord]$e = $_
-      $info = [PSCustomObject]@{
-        Exception = $e.Exception.Message
-        Reason    = $e.CategoryInfo.Reason
-        Target    = $e.CategoryInfo.TargetName
-        Script    = $e.InvocationInfo.ScriptName
-        Line      = $e.InvocationInfo.ScriptLineNumber
-        Column    = $e.InvocationInfo.OffsetInLine
+    } catch {
+      $errorDetails = @{
+        Exception = $_.Exception.Message
+        Reason    = $_.CategoryInfo.Reason
+        Target    = $_.CategoryInfo.TargetName
+        Script    = $_.InvocationInfo.ScriptName
+        Line      = $_.InvocationInfo.ScriptLineNumber
+        Column    = $_.InvocationInfo.OffsetInLine
       }
-      $info
+      Write-PSFMessage -Level Error -Message "An error occurred while retrieving list types" -ErrorRecord $_
+      throw [PSCustomObject]$errorDetails
     }
   }
+
   end {
-    Write-PSFMessage -Level Verbose -Message 'Output list types...'
-    $listTypes
+    Write-PSFMessage -Level Verbose -Message 'Completed retrieving list types.'
   }
 }
