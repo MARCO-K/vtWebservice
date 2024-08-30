@@ -1,76 +1,97 @@
-﻿function Get-vtLogin 
-{
+﻿function Get-vtLogin {
   <#
-      .SYNOPSIS
-      This cmdlet will login and create a new session.
+  .SYNOPSIS
+  Logs in and creates a new session for vtiger CRM.
 
-      .DESCRIPTION   
-      This cmdlet will login and create a new session.
+  .DESCRIPTION
+  This function logs in to the vtiger CRM system and creates a new session using the provided credentials.
 
-      .PARAMETER uri
-      The name of actual uri.
+  .PARAMETER Uri
+  The URI of the vtiger API endpoint.
 
-      .PARAMETER contenttype
-      The name of actual contenttype.
+  .PARAMETER ContentType
+  The content type for the API request. Defaults to 'application/x-www-form-urlencoded'.
 
-      .PARAMETER username
-      The username to aquire the session token.
+  .PARAMETER Username
+  The username to acquire the session token.
 
-      .PARAMETER accessKey
-      The accessKey to create the new session.
+  .PARAMETER AccessKey
+  The access key to create the new session.
 
+  .EXAMPLE
+  Get-vtLogin -Uri 'https://your.vtiger.com/webservice.php' -Username 'your_username' -AccessKey 'your_access_key'
 
-      .EXAMPLE
-      Get-vtLogin -Sessionname $session -uri $uri -accessKey $accessKey
-
-      .OUTPUTS
-      The cmdlet will output a new session token as string.
+  .OUTPUTS
+  Returns the new session token as a string.
   #>
+
+  [CmdletBinding()]
+  [OutputType([string])]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$username,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$accessKey
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Username,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$AccessKey
   )
+
   begin { 
-    Write-PSFMessage -Level Verbose -Message 'Starting to login ...'
-    $login = @{
+    Write-PSFMessage -Level Verbose -Message 'Starting login process...'
+    $loginParams = @{
       operation = 'login'
-      username  = $username
-      accessKey = $accessKey
+      username  = $Username
+      accessKey = $AccessKey
     }
   }
+
   process {
-    try 
-    {
-      Write-PSFMessage -Level Verbose -Message 'Trying to login...' 
-      $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $login -ContentType $contenttype
-      if($result -and $result.success -eq $true) 
-      {
-        $sessionName = $result.result.sessionName
+    try {
+      Write-PSFMessage -Level Verbose -Message 'Sending login request...' 
+      $invokeParams = @{
+        Uri         = $Uri
+        Method      = 'POST'
+        Body        = $loginParams
+        ContentType = $ContentType
+        ErrorAction = 'Stop'
       }
-      else 
-      {
-        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-        $result = $result.error.message
+      $result = Invoke-RestMethod @invokeParams
+
+      if ($result.success -eq $true) {
+        Write-PSFMessage -Level Verbose -Message 'Login successful. Session created.'
+        $result.result.sessionName
+      } else {
+        $errorMessage = if ($result.error.PSObject.Properties['message']) { 
+          $result.error.message 
+        } else { 
+          "Unknown error occurred during login" 
+        }
+        Write-PSFMessage -Level Warning -Message "Login failed. Error: $errorMessage"
+        throw $errorMessage
       }
-    }
-    catch 
-    {
-      [Management.Automation.ErrorRecord]$e = $_
-      $info = [PSCustomObject]@{
-        Exception = $e.Exception.Message
-        Reason    = $e.CategoryInfo.Reason
-        Target    = $e.CategoryInfo.TargetName
-        Script    = $e.InvocationInfo.ScriptName
-        Line      = $e.InvocationInfo.ScriptLineNumber
-        Column    = $e.InvocationInfo.OffsetInLine
+    } catch {
+      $errorDetails = @{
+        Exception = $_.Exception.Message
+        Reason    = $_.CategoryInfo.Reason
+        Target    = $_.CategoryInfo.TargetName
+        Script    = $_.InvocationInfo.ScriptName
+        Line      = $_.InvocationInfo.ScriptLineNumber
+        Column    = $_.InvocationInfo.OffsetInLine
       }
-      $info
+      Write-PSFMessage -Level Error -Message "An error occurred during the login process" -ErrorRecord $_
+      throw [PSCustomObject]$errorDetails
     }
   }
+
   end {
-    Write-PSFMessage -Level Verbose -Message 'Output the new session name...'
-    $sessionName
+    Write-PSFMessage -Level Verbose -Message 'Login process completed.'
   }
 }
