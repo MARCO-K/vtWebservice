@@ -1,5 +1,4 @@
-﻿function Get-vtQueryrecord
-{
+﻿function Get-vtQueryrecord {
   <#
       .SYNOPSIS
       This cmdlet will retrieve one or more records matching filtering field conditions.
@@ -25,55 +24,60 @@
       .OUTPUTS
       The cmdlet will output  one or more records.
   #>
+  [CmdletBinding()]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$contenttype,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$querystring
+    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$uri,
+    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$contenttype,
+    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$sessionName,
+    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$querystring
   )
+
   begin {
     Write-PSFMessage -Level Verbose -Message 'Starting to query records...'
+
+    # Basic validation to ensure the querystring contains only allowed characters
+    $allowedCharacters = '^[a-zA-Z0-9_\s\.,;''"\(\)\-\+\*\=\<\>\!\&\|\%]+$'
+    if (-not ($querystring -match $allowedCharacters)) {
+      Write-PSFMessage -Level Error -Message "Invalid characters in querystring: $querystring"
+      throw "Invalid querystring"
+    }
+
     $query = @{
       sessionName = $sessionName
       operation   = 'query'
       query       = $querystring
     }
   }
+
   process {
-    try 
-    { 
-      Write-PSFMessage -Level Verbose -Message "Query records... $querystring"
+    try {
+      Write-PSFMessage -Level Verbose -Message "Querying records with query string: $querystring"
       $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $query -ContentType $contenttype
-      if($result -and $result.success -eq $true) 
-      {
+
+      if ($result -and $result.success -eq $true) {
         $result = $result.result
-      }
-      elseif($result.success -eq $false) 
-      {
-        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
+      } elseif ($result.success -eq $false) {
+        Write-PSFMessage -Level Warning -Message "Query failed: $($result.error.message)"
         $result = $result.error.message
+      } else {
+        Write-PSFMessage -Level Error -Message "Unexpected response from the server."
       }
-      else 
-      {
-        Write-PSFMessage -Level Error -Message "Something went wrong... $($result.error.message)"
-      } 
-    }
-    catch 
-    {
-      [Management.Automation.ErrorRecord]$e = $_
-      $info = [PSCustomObject]@{
-        Exception = $e.Exception.Message
-        Reason    = $e.CategoryInfo.Reason
-        Target    = $e.CategoryInfo.TargetName
-        Script    = $e.InvocationInfo.ScriptName
-        Line      = $e.InvocationInfo.ScriptLineNumber
-        Column    = $e.InvocationInfo.OffsetInLine
+    } catch {
+      $errorDetails = @{
+        Exception = $_.Exception.Message
+        Reason    = $_.CategoryInfo.Reason
+        Target    = $_.CategoryInfo.TargetName
+        Script    = $_.InvocationInfo.ScriptName
+        Line      = $_.InvocationInfo.ScriptLineNumber
+        Column    = $_.InvocationInfo.OffsetInLine
       }
-      $info
+      Write-PSFMessage -Level Error -Message "An error occurred: $($info.Exception)" -ErrorRecord $_
+      throw [PSCustomObject]$errorDetails
     }
   }
+
   end {
-    Write-PSFMessage -Level Verbose -Message 'Output the query records...'
+    Write-PSFMessage -Level Verbose -Message 'Outputting the query records...'
     $result
   }
 }
