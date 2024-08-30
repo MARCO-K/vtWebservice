@@ -17,3 +17,5 @@
 . $PSScriptRoot\Get-vtSessiontoken.ps1
 . $PSScriptRoot\Import-vtRecord.ps1
 . $PSScriptRoot\New-vtRecord.ps1
+. $PSScriptRoot\Update-vtRecord.ps1
+. $PSScriptRoot\Remove-vtRecord.ps1

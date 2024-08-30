@@ -1,83 +1,95 @@
-﻿function Update-vtRecord
-{
+﻿function Update-vtRecord {
   <#
-      .SYNOPSIS
-      This cmdlet will update an existing record.
-      .DESCRIPTION   
-      This cmdlet will update an existing record.
-      .PARAMETER uri
-      The name of actual uri.
-      .PARAMETER contenttype
-      The name of actual contenttype.
-      .PARAMETER sessionName
-      The name of actual sessionName.
-      .PARAMETER recordid
-      The ID of one record.
-      .PARAMETER record
-      The JSON data of the for record.
-      NOTE: The API expects all the mandatory fields be re-stated as part of the element parameter.
-      .EXAMPLE
-      Update-vtRecord -uri $uri -sessionName $sessionName -recordid $id -record $record
-      .OUTPUTS
-      The cmdlet will output the resultof the create operation.
-  #>
+    .SYNOPSIS
+    Updates an existing record.
+    .DESCRIPTION   
+    Updates an existing record using the provided URI, session name, record ID, and record data.
+    .PARAMETER Uri
+    The URI for the API endpoint.
+    .PARAMETER ContentType
+    The content type for the request. Defaults to 'application/x-www-form-urlencoded'.
+    .PARAMETER SessionName
+    The name of the session.
+    .PARAMETER RecordId
+    The ID of the record to update.
+    .PARAMETER Record
+    The JSON data for the record update.
+    NOTE: The API expects all mandatory fields to be re-stated as part of the element parameter.
+    .EXAMPLE
+    Update-vtRecord -Uri 'https://api.example.com' -SessionName 'MySession' -RecordId '12345' -Record '{"field1":"value1","field2":"value2"}'
+    .OUTPUTS
+    Returns the result of the update operation.
+    #>
+  [CmdletBinding()]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$recordid,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript( {
-          if($_ | ConvertFrom-Json) 
-          {
-            $true
-          }
-          else 
-          {
-            throw "$_ not valid JSON"
-          }
-    }  )]
-    [string]$record
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SessionName,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$RecordId,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [ValidateScript({
+        $_ | ConvertFrom-Json -ErrorAction Stop
+        $true
+      })]
+    [string]$Record
   )
   
   begin {
-    Write-PSFMessage -Level Verbose -Message "Starting to update a record..."
-    $update = @{
+    Write-PSFMessage -Level Verbose -Message "Starting to update record with ID: $RecordId"
+    $updateParams = @{
       operation   = 'update'
-      sessionName = $sessionName
-      element     = $record
+      sessionName = $SessionName
+      element     = $Record
     }
   }
+
   process {
-    try
-    {
-      Write-PSFMessage -Level Verbose -Message  "Updating the record for ID: $recordid..."
-      $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $update -ContentType $contenttype
-      if($result -and $result.success -eq $true)
-      {
+    try {
+      Write-PSFMessage -Level Verbose -Message "Sending update request for record ID: $RecordId"
+      $invokeParams = @{
+        Uri         = $Uri
+        Method      = 'POST'
+        Body        = $updateParams
+        ContentType = $ContentType
+        ErrorAction = 'Stop'
+      }
+      $result = Invoke-RestMethod @invokeParams
+
+      if ($result.success -eq $true) {
+        Write-PSFMessage -Level Verbose -Message "Successfully updated record ID: $RecordId"
+        $result
+      } else {
+        $errorMessage = $result.error.message 
+        Write-PSFMessage -Level Warning -Message "Failed to update record. Error: $errorMessage"
         $result
       }
-      else 
-      {
-        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-        $result = $result.error.message
+    } catch {
+      $errorDetails = @{
+        Exception = $_.Exception.Message
+        Reason    = $_.CategoryInfo.Reason
+        Target    = $_.CategoryInfo.TargetName
+        Script    = $_.InvocationInfo.ScriptName
+        Line      = $_.InvocationInfo.ScriptLineNumber
+        Column    = $_.InvocationInfo.OffsetInLine
       }
-    }
-    catch 
-    {
-      [Management.Automation.ErrorRecord]$e = $_
-      $info = [PSCustomObject]@{
-        Exception = $e.Exception.Message
-        Reason    = $e.CategoryInfo.Reason
-        Target    = $e.CategoryInfo.TargetName
-        Script    = $e.InvocationInfo.ScriptName
-        Line      = $e.InvocationInfo.ScriptLineNumber
-        Column    = $e.InvocationInfo.OffsetInLine
-      }
-      $info
+      Write-PSFMessage -Level Error -Message "An error occurred while updating the record" -ErrorRecord $_
+      [PSCustomObject]$errorDetails
     }
   }
-  end{
-    Write-PSFMessage -Level Verbose -Message 'Output the updated record...'
-    $result
+
+  end {
+    Write-PSFMessage -Level Verbose -Message "Completed update operation for record ID: $RecordId"
   }
 }
