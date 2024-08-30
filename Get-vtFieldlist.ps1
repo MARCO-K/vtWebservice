@@ -1,97 +1,112 @@
-﻿function Get-vtFieldlist 
-{
+﻿function Get-vtFieldlist {
   <#
-      .SYNOPSIS
-      This cmdlet will get all fields of a vtiger module.
+  .SYNOPSIS
+  Gets all fields of a vtiger module.
 
-      .DESCRIPTION   
-      This cmdlet will get all fields of a vtiger module.
-      It will retrieve all field and their basic informations, e.g datatype.
+  .DESCRIPTION
+  This function retrieves all fields and their basic information (e.g., datatype) for a specified vtiger module.
 
-      .PARAMETER uri
-      The name of actual uri.
+  .PARAMETER Uri
+  The URI of the vtiger API endpoint.
 
-      .PARAMETER contenttype
-      The name of actual contenttype.
+  .PARAMETER ContentType
+  The content type for the API request. Defaults to 'application/x-www-form-urlencoded'.
 
-      .PARAMETER sessionName
-      The name of actual sessionName.
+  .PARAMETER SessionName
+  The name of the current session.
 
-      .PARAMETER module
-      The name of the vtiger module.
+  .PARAMETER Module
+  The name of the vtiger module to retrieve fields for.
 
-      .EXAMPLE
-      Get-vtFieldlist -Sessionname $session -module $module
+  .EXAMPLE
+  Get-vtFieldlist -Uri 'https://your.vtiger.com/webservice.php' -SessionName 'YourSessionToken' -Module 'Contacts'
 
-      .OUTPUTS
-      The cmdlet will output all fileds as object.
+  .OUTPUTS
+  An array of PSCustomObjects containing field information (Name, Label, Datatype, Mandatory).
   #>
+
+  [CmdletBinding()]
+  [OutputType([PSCustomObject[]])]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript({
-          if( $_ -in (Get-vtListtype -uri $uri -sessionName $sessionName)) 
-          {
-            return $true 
-          }
-          else 
-          {
-            throw "$_ is not a valid module name." 
-          }
-    } )]
-    [string]$module 
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SessionName,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [ValidateScript({
+        $validModules = Get-vtListtype -Uri $Uri -SessionName $SessionName
+        if ($_ -in $validModules) {
+          return $true
+        }
+        throw "'$_' is not a valid module name. Valid modules are: $($validModules -join ', ')"
+      })]
+    [string]$Module
   )
-  
+
   begin {
-    Write-PSFMessage -Level Verbose -Message "Starting to get a field list for module $module..."
-    $describe = @{
-      sessionName = $sessionName
+    Write-PSFMessage -Level Verbose -Message "Starting to get field list for module '$Module'..."
+    $describeParams = @{
+      sessionName = $SessionName
       operation   = 'describe'
-      elementType = $module
+      elementType = $Module
     }
   }
+
   process {
-    try 
-    {
-      Write-PSFMessage -Level Verbose -Message 'Retrieving field list...'
-      $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $describe -ContentType $contenttype
-      if($result -and $result.success -eq $true) 
-      { 
-        $fieldlist = 
-        foreach ($field in $result.result.fields)
-        {
+    try {
+      Write-PSFMessage -Level Verbose -Message "Retrieving field list for module '$Module'..."
+      $invokeParams = @{
+        Uri         = $Uri
+        Method      = 'GET'
+        Body        = $describeParams
+        ContentType = $ContentType
+        ErrorAction = 'Stop'
+      }
+      $result = Invoke-RestMethod @invokeParams
+
+      if ($result.success -eq $true) {
+        Write-PSFMessage -Level Verbose -Message "Successfully retrieved field list for module '$Module'."
+        $fieldlist = $result.result.fields | ForEach-Object {
           [PSCustomObject]@{
-            Name      = $field.Name
-            Label     = $field.label
-            Datatype  = $field.type.name
-            Mandatory = $field.mandatory
+            Name      = $_.Name
+            Label     = $_.label
+            Datatype  = $_.type.name
+            Mandatory = $_.mandatory
           }
         }
+        $fieldlist
+      } else {
+        $errorMessage = if ($result.error -and $result.error.PSObject.Properties['message']) { 
+          $result.error.message 
+        } else { 
+          "Unknown error occurred" 
+        }
+        Write-PSFMessage -Level Warning -Message "Failed to retrieve field list. Error: $errorMessage"
+        throw $errorMessage
       }
-      else 
-      {
-        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-        $result = $result.error.message
+    } catch {
+      $errorDetails = @{
+        Exception = $_.Exception.Message
+        Reason    = $_.CategoryInfo.Reason
+        Target    = $_.CategoryInfo.TargetName
+        Script    = $_.InvocationInfo.ScriptName
+        Line      = $_.InvocationInfo.ScriptLineNumber
+        Column    = $_.InvocationInfo.OffsetInLine
       }
-    }
-    catch 
-    {
-      [Management.Automation.ErrorRecord]$e = $_
-      $info = [PSCustomObject]@{
-        Exception = $e.Exception.Message
-        Reason    = $e.CategoryInfo.Reason
-        Target    = $e.CategoryInfo.TargetName
-        Script    = $e.InvocationInfo.ScriptName
-        Line      = $e.InvocationInfo.ScriptLineNumber
-        Column    = $e.InvocationInfo.OffsetInLine
-      }
-      $info
+      Write-PSFMessage -Level Error -Message "An error occurred while retrieving the field list" -ErrorRecord $_
+      throw [PSCustomObject]$errorDetails
     }
   }
 
-  end{
-    Write-PSFMessage -Level Verbose -Message 'Output the field list...'
-    $fieldlist
+  end {
+    Write-PSFMessage -Level Verbose -Message "Completed retrieving field list for module '$Module'."
   }
 }
