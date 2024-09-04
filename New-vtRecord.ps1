@@ -1,5 +1,4 @@
-﻿function New-vtRecord
-{
+﻿function New-vtRecord {
   <#
       .SYNOPSIS
       This cmdlet will create a new record in an vtiger module.
@@ -21,73 +20,83 @@
       .OUTPUTS
       The cmdlet will output the resultof the create operation.
   #>
+  [CmdletBinding()]
+  [OutputType([PSCustomObject])]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript({
-          if( $_ -in (Get-vtListtype -uri $uri -sessionName $sessionName)) 
-          {
-            return $true
-          }
-          else 
-          {
-            throw "$_ is not a valid module name."
-          }
-    } )]
-    [string]$module,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript( {
-          if($_ | ConvertFrom-Json) 
-          {
-            $true
-          }
-          else 
-          {
-            throw "$_ not valid JSON"
-          }
-    }  )]
-    [string]$record
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SessionName,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [ValidateScript({
+        $validModules = Get-vtListtype -Uri $Uri -SessionName $SessionName
+        if ($_ -in $validModules) {
+          $true
+        } else {
+          throw "Invalid module name: $_. Valid modules are: $($validModules -join ', ')"
+        }
+      })]
+    [string]$Module,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [ValidateScript({
+        try {
+          $null = $_ | ConvertFrom-Json
+          $true
+        } catch {
+          throw "Invalid JSON: $_"
+        }
+      })]
+    [string]$Record
   )
+
   begin {
     Write-PSFMessage -Level Verbose -Message 'Starting to create a new record...'
-    $create = @{
-      operation   = 'create'
-      sessionName = $sessionName
-      element     = $record
-      elementType = $module
-    }
   }
+
   process {
-    try
-    {
-      Write-PSFMessage -Level Verbose -Message "Trying to create a new record in $module..." 
-      $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $create -ContentType $contenttype
-      if($result -and $result.success -eq $true)
-      {
-        $result = $result.result
+    try {
+      Write-PSFMessage -Level Verbose -Message "Attempting to create a new record in $Module..."
+
+      $params = @{
+        Uri         = $Uri
+        Method      = 'Post'
+        ContentType = $ContentType
+        Body        = @{
+          operation   = 'create'
+          sessionName = $SessionName
+          element     = $Record
+          elementType = $Module
+        }
+        ErrorAction = 'Stop'
       }
-      else 
-      {
-        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-        $result = $result.error.message
+
+      $response = Invoke-RestMethod @params
+
+      if ($response.success) {
+        Write-PSFMessage -Level Verbose -Message "Successfully created a new record in $Module."
+        $response.result
+      } else {
+        Write-PSFMessage -Level Warning -Message "Failed to create record: $($response.error.message)"
+        throw $response.error.message
       }
-    }
-    catch 
-    {
-      [Management.Automation.ErrorRecord]$e = $_
-      $info = [PSCustomObject]@{
-        Exception = $e.Exception.Message
-        Reason    = $e.CategoryInfo.Reason
-        Target    = $e.CategoryInfo.TargetName
-        Script    = $e.InvocationInfo.ScriptName
-        Line      = $e.InvocationInfo.ScriptLineNumber
-        Column    = $e.InvocationInfo.OffsetInLine
-      }
-      $info
+    } catch {
+      Write-PSFMessage -Level Error -Message "An error occurred while creating a record: $_"
+      throw
     }
   }
-  end{
-    Write-PSFMessage -Level Verbose -Message 'Output the newly created record...'
-    $result
+
+  end {
+    Write-PSFMessage -Level Verbose -Message 'Finished processing New-vtRecord.'
   }
 }
