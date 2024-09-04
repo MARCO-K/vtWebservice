@@ -1,80 +1,93 @@
-﻿function Get-vtRetrieverecord
-{
+﻿function Get-vtRetrieverecord {
   <#
-      .SYNOPSIS
-      This cmdlet will retrieve one or more records based on record ID.
+  .SYNOPSIS
+  Retrieves one or more records from vtiger CRM based on record IDs.
 
-      .DESCRIPTION   
-      This cmdlet will retrieve one or more records based on record ID.
+  .DESCRIPTION
+  This function retrieves one or more records from the vtiger CRM system using the provided record IDs.
 
-      .PARAMETER uri
-      The name of actual uri.
+  .PARAMETER Uri
+  The URI of the vtiger API endpoint.
 
-      .PARAMETER contenttype
-      The name of actual contenttype.
+  .PARAMETER ContentType
+  The content type for the API request. Defaults to 'application/x-www-form-urlencoded'.
 
-      .PARAMETER sessionName
-      The name of actual sessionName.
-      
-      .PARAMETER recordid
-      The ID of one or more records.
+  .PARAMETER SessionName
+  The name of the current session.
 
-      .EXAMPLE
-      Get-vtRetrieverecord -Sessionname $session -uri $uri -sessionName $sessionName -recordid $recordid
+  .PARAMETER RecordIds
+  An array of record IDs to retrieve.
 
-      .OUTPUTS
-      The cmdlet will output  one or more records.
+  .EXAMPLE
+  Get-vtRetrieverecord -Uri 'https://your.vtiger.com/webservice.php' -SessionName 'YourSessionToken' -RecordIds '12x34', '12x35'
+
+  .OUTPUTS
+  Returns an array of retrieved records.
   #>
+
+  [CmdletBinding()]
+  [OutputType([PSCustomObject[]])]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory,ValueFromPipeline)][ValidateNotNullOrEmpty()][string[]]$recordids
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SessionName,
+
+    [Parameter(Mandatory, ValueFromPipeline)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$RecordIds
   )
+
   begin {
     Write-PSFMessage -Level Verbose -Message 'Starting to retrieve records...'
-
   }
+
   process {
-    $results = 
-    foreach($recordid in $recordids) 
-    { 
+    $result =
+    foreach ($recordId in $RecordIds) { 
       $retrieve = @{
         operation   = 'retrieve'
         sessionName = $sessionName
         id          = $recordid
       }
-      try 
-      { 
-        Write-PSFMessage -Level Verbose -Message "Retrieving the record for ID: $recordid..."
+
+      try { 
+        Write-PSFMessage -Level Verbose -Message "Retrieving the record for ID: $recordId..."
         $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $retrieve -ContentType $contenttype
-        if($result -and $result.success -eq $true) 
-        {
+
+        if ($result.success -eq $true) {
           $result.result
+          Write-PSFMessage -Level Verbose -Message "Successfully retrieved record for ID: $recordId"
+        } else {
+          $errorMessage = if ($result.error.PSObject.Properties['message']) { 
+            $result.error.message 
+          } else { 
+            "Unknown error occurred while retrieving record" 
+          }
+          Write-PSFMessage -Level Warning -Message "Failed to retrieve record for ID: $recordId. Error: $errorMessage"
         }
-        else 
-        {
-          Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-          $result = $result.error.message
+      } catch {
+        $errorDetails = @{
+          Exception = $_.Exception.Message
+          Reason    = $_.CategoryInfo.Reason
+          Target    = $_.CategoryInfo.TargetName
+          Script    = $_.InvocationInfo.ScriptName
+          Line      = $_.InvocationInfo.ScriptLineNumber
+          Column    = $_.InvocationInfo.OffsetInLine
         }
-      }
-      catch 
-      {
-        [Management.Automation.ErrorRecord]$e = $_
-        $info = [PSCustomObject]@{
-          Exception = $e.Exception.Message
-          Reason    = $e.CategoryInfo.Reason
-          Target    = $e.CategoryInfo.TargetName
-          Script    = $e.InvocationInfo.ScriptName
-          Line      = $e.InvocationInfo.ScriptLineNumber
-          Column    = $e.InvocationInfo.OffsetInLine
-        }
-        $info
+        Write-PSFMessage -Level Error -Message "An error occurred while retrieving record for ID: $recordId" -ErrorRecord $_
+        [PSCustomObject]$errorDetails
       }
     }
   }
   end {
-    Write-PSFMessage -Level Verbose -Message 'Output the record...'
-    $results
+    Write-PSFMessage -Level Verbose -Message 'Output the records...'
+    $result
   }
 }
