@@ -1,61 +1,85 @@
 ﻿function Get-vtQueryrecord {
   <#
-      .SYNOPSIS
-      This cmdlet will retrieve one or more records matching filtering field conditions.
+    .SYNOPSIS
+    Retrieves one or more records matching filtering field conditions from vtiger CRM.
 
-      .DESCRIPTION   
-      This cmdlet will retrieve one or more records matching filtering field conditions.
+    .DESCRIPTION
+    This function queries the vtiger CRM system and retrieves records that match the specified filtering conditions.
 
-      .PARAMETER uri
-      The name of actual uri.
+    .PARAMETER Uri
+    The URI of the vtiger API endpoint.
 
-      .PARAMETER contenttype
-      The name of actual contenttype.
+    .PARAMETER ContentType
+    The content type for the API request.
 
-      .PARAMETER sessionName
-      The name of actual sessionName.
-      
-      .PARAMETER querystring
-      The filtering conditions for the query.
+    .PARAMETER SessionName
+    The name of the current session.
 
-      .EXAMPLE
-      Get-vtQueryrecord -Sessionname $session -uri $uri -sessionName $sessionName -querystring $querystring
+    .PARAMETER QueryString
+    The filtering conditions for the query.
 
-      .OUTPUTS
-      The cmdlet will output one or more records.
-  #>
+    .EXAMPLE
+    Get-vtQueryrecord -Uri 'https://your.vtiger.com/webservice.php' -ContentType 'application/x-www-form-urlencoded' -SessionName 'YourSessionToken' -QueryString 'SELECT * FROM Contacts;'
+
+    .OUTPUTS
+    Returns one or more records matching the query conditions.
+    #>
+
   [CmdletBinding()]
+  [OutputType([PSCustomObject[]])]
   param(
-    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$uri,
-    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$contenttype,
-    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][ValidatePattern('^[a-zA-Z0-9_\s\.,;''"\(\)\-\+\*\=\<\>\!\&\|\%]+$')][string]$querystring
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SessionName,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [ValidatePattern('^[a-zA-Z0-9_\s\.,;''"\(\)\-\+\*\=\<\>\!\&\|\%]+$')]
+    [string]$QueryString
   )
 
   begin {
     Write-PSFMessage -Level Verbose -Message 'Starting to query records...'
+    $queryParams = @{
+      sessionName = $SessionName
+      operation   = 'query'
+      query       = $QueryString
+    }
   }
 
   process {
-    $query = @{
-      sessionName = $sessionName
-      operation   = 'query'
-      query       = $querystring
-    }
-
     try {
-      Write-PSFMessage -Level Verbose -Message "Querying records with query string: $querystring"
-      $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $query -ContentType $contenttype
+      Write-PSFMessage -Level Verbose -Message "Querying records with: $QueryString"
+      $invokeParams = @{
+        Uri         = $Uri
+        Method      = 'GET'
+        Body        = $queryParams
+        ContentType = $ContentType
+        ErrorAction = 'Stop'
+      }
+      $result = Invoke-RestMethod @invokeParams
 
-      if ($result -and $result.success -eq $true) {
-        Write-PSFMessage -Level Verbose -Message "Query successful. Records retrieved."
-        $result = $result.result
+      if ($result.success -eq $true) {
+        Write-PSFMessage -Level Verbose -Message 'Query executed successfully.'
+        $result.result
       } elseif ($result.success -eq $false) {
-        Write-PSFMessage -Level Warning -Message "Query failed: $($result.error.message)"
-        $result = $result.error.message
+        $errorMessage = if ($result.error.PSObject.Properties['message']) { 
+          $result.error.message 
+        } else { 
+          "Unknown error occurred during query" 
+        }
+        Write-PSFMessage -Level Warning -Message "Query failed. Error: $errorMessage"
+        throw $errorMessage
       } else {
-        Write-PSFMessage -Level Error -Message "Unexpected response from the server."
-        $result = $null
+        throw "Unexpected response from server"
       }
     } catch {
       $errorDetails = @{
@@ -66,13 +90,12 @@
         Line      = $_.InvocationInfo.ScriptLineNumber
         Column    = $_.InvocationInfo.OffsetInLine
       }
-      Write-PSFMessage -Level Error -Message "An error occurred: $($errorDetails.Exception)" -Data $errorDetails
+      Write-PSFMessage -Level Error -Message "An error occurred during the query process" -ErrorRecord $_
       throw [PSCustomObject]$errorDetails
     }
   }
 
   end {
-    Write-PSFMessage -Level Verbose -Message 'Outputting the query records...'
-    $result
+    Write-PSFMessage -Level Verbose -Message 'Query process completed.'
   }
 }
