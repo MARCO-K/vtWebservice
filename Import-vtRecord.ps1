@@ -1,5 +1,4 @@
-﻿function Import-vtRecord
-{
+﻿function Import-vtRecord {
   <#
       .SYNOPSIS
       This cmdlet will create a new records in an vtiger module from an object.
@@ -20,7 +19,7 @@
       The name of the module where the new record will be created.
       
       .PARAMETER records
-      Theone or more records as object.
+      One or more records as object.
       
       .EXAMPLE
       Import-vtRecord -uri $uri -contenttype $contenttype -sessionName $sessionName -module $module -records $object
@@ -28,69 +27,79 @@
       .OUTPUTS
       The cmdlet will output the resultof the create operation.
   #>
+
+  [CmdletBinding()]
+  [OutputType([PSCustomObject[]])]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$sessionName,
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][ValidateScript({
-          if( $_ -in (Get-vtListtype -uri $uri -sessionName $sessionName)) 
-          {
-            return $true
-          }
-          else 
-          {
-            throw "$_ is not a valid module name."
-          }
-    } )]
-    [string]$module,
-    [parameter(Mandatory,ValueFromPipeline)][ValidateNotNullOrEmpty()][object[]]$records
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SessionName,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [ValidateScript({
+        $validModules = Get-vtListtype -Uri $Uri -SessionName $SessionName
+        if ($_ -in $validModules) {
+          $true
+        } else {
+          throw "$_ is not a valid module name. Valid modules are: $($validModules -join ', ')"
+        }
+      })]
+    [string]$Module,
+
+    [Parameter(Mandatory, ValueFromPipeline)]
+    [ValidateNotNullOrEmpty()]
+    [object[]]$Records
   )
   begin {
     Write-PSFMessage -Level Verbose -Message "Starting to create $($records.count) new record(s)..."
+    $results = @()
+
   }
 
   process {
     $results =
-    foreach($record in $records)
-    {
-      $record = $record | ConvertTo-Json
+    foreach ($record in $records) {
       $create = @{
         operation   = 'create'
         sessionName = $sessionName
-        element     = $record
+        element     = $record | ConvertTo-Json
         elementType = $module
       }
-      try
-      {
-        Write-PSFMessage -Level Verbose -Message "Trying to create a new record in $module..." 
+      try {
+        Write-PSFMessage -Level Verbose -Message "Attempting to create a new record in $Module..."
         $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $create -ContentType $contenttype
-        if($result -and $result.success -eq $true)
-        {
-          #$result = $result.result
-          $result
-        }
-        else 
-        {
+        
+        if ($result.success) {
+          Write-PSFMessage -Level Verbose -Message "Successfully created a new record in $Module."
+          $response.result
+        } else {
           Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-          $result = $result.error.message
+          $result.error.message
         }
-      }
-      catch 
-      {
-        [Management.Automation.ErrorRecord]$e = $_
-        $info = [PSCustomObject]@{
-          Exception = $e.Exception.Message
-          Reason    = $e.CategoryInfo.Reason
-          Target    = $e.CategoryInfo.TargetName
-          Script    = $e.InvocationInfo.ScriptName
-          Line      = $e.InvocationInfo.ScriptLineNumber
-          Column    = $e.InvocationInfo.OffsetInLine
+      } catch {
+        Write-PSFMessage -Level Error -Message "An error occurred while creating a record: $_"
+        $errorDetails = @{
+          Exception = $_.Exception.Message
+          Reason    = $_.CategoryInfo.Reason
+          Target    = $_.CategoryInfo.TargetName
+          Script    = $_.InvocationInfo.ScriptName
+          Line      = $_.InvocationInfo.ScriptLineNumber
+          Column    = $_.InvocationInfo.OffsetInLine
         }
-        $info
+        [PSCustomObject]$errorDetails 
       }
     }
   }
-  end{
+  end {
     Write-PSFMessage -Level Verbose -Message 'Output the newly created record...'
     $results
   }
