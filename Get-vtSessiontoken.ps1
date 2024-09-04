@@ -1,5 +1,4 @@
-﻿function Get-vtSessiontoken 
-{
+﻿function Get-vtSessiontoken {
   <#
       .SYNOPSIS
       This cmdlet will challenge a session token to authenticate a new session.
@@ -23,11 +22,22 @@
       .OUTPUTS
       The cmdlet will output a new session token as string.
   #>
+  [CmdletBinding()]
+  [OutputType([string])]
   param(
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$uri,
-    [string]$contenttype = 'application/x-www-form-urlencoded',
-    [parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$username
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Uri,
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContentType = 'application/x-www-form-urlencoded',
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Username
   )
+
   begin { 
     Write-PSFMessage -Level Verbose -Message 'Starting to challenge a new sesison token...'
     $challenge = @{
@@ -36,22 +46,25 @@
     }
   }
   process { 
-    try 
-    { 
-      Write-PSFMessage -Level Verbose -Message 'Requesting a new sesison token...'
-      $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $challenge -ContentType $contenttype
-      if($result -and $result.success -eq $true) 
-      {
-        $token = $result.result.token
+    try { 
+      Write-PSFMessage -Level Verbose -Message 'Requesting a new session token...'
+      $params = @{
+        Uri         = $Uri
+        Method      = 'Get'
+        Body        = $challenge
+        ContentType = $ContentType
+        ErrorAction = 'Stop'
       }
-      else 
-      {
-        Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-        $result = $result.error.message
+      $result = Invoke-RestMethod @params
+
+      if ($result.success) {
+        Write-PSFMessage -Level Verbose -Message 'Successfully obtained session token.'
+        $result.result.token
+      } else {
+        Write-PSFMessage -Level Warning -Message "Failed to obtain session token: $($result.error.message)"
+        throw $result.error.message
       }
-    }
-    catch 
-    {
+    } catch {
       [Management.Automation.ErrorRecord]$e = $_
       $info = [PSCustomObject]@{
         Exception = $e.Exception.Message
@@ -66,6 +79,5 @@
   }
   end {
     Write-PSFMessage -Level Verbose -Message 'Output the new token...'
-    $token
   }
 }
