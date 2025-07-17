@@ -1,4 +1,5 @@
-﻿function New-vtRecord {
+﻿function New-vtRecord
+{
   <#
       .SYNOPSIS
       This cmdlet will create a new record in an vtiger module.
@@ -20,7 +21,7 @@
       .OUTPUTS
       The cmdlet will output the resultof the create operation.
   #>
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess)]
   [OutputType([PSCustomObject])]
   param(
     [Parameter(Mandatory)]
@@ -28,7 +29,7 @@
     [string]$Uri,
 
     [Parameter()]
-    [ValidateNotNullOrEmpty()]
+    [ValidateSet('application/x-www-form-urlencoded', 'application/json')]
     [string]$ContentType = 'application/x-www-form-urlencoded',
 
     [Parameter(Mandatory)]
@@ -38,10 +39,13 @@
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [ValidateScript({
-        $validModules = Get-vtListtype -Uri $Uri -SessionName $SessionName
-        if ($_ -in $validModules) {
+        $validModules = Get-vtValidModules -Uri $Uri -SessionName $SessionName
+        if ($_ -in $validModules)
+        {
           $true
-        } else {
+        }
+        else
+        {
           throw "Invalid module name: $_. Valid modules are: $($validModules -join ', ')"
         }
       })]
@@ -50,53 +54,77 @@
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [ValidateScript({
-        try {
+        try
+        {
           $null = $_ | ConvertFrom-Json
           $true
-        } catch {
+        }
+        catch
+        {
           throw "Invalid JSON: $_"
         }
       })]
     [string]$Record
   )
 
-  begin {
+  begin
+  {
     Write-PSFMessage -Level Verbose -Message 'Starting to create a new record...'
   }
 
-  process {
-    try {
-      Write-PSFMessage -Level Verbose -Message "Attempting to create a new record in $Module..."
+  process
+  {
+    try
+    {
+      # ShouldProcess check for record creation
+      if ($PSCmdlet.ShouldProcess("Module: $Module", "Create new vTiger record"))
+      {
+        Write-PSFMessage -Level Verbose -Message "Attempting to create a new record in $Module..."
 
-      $params = @{
-        Uri         = $Uri
-        Method      = 'Post'
-        ContentType = $ContentType
-        Body        = @{
-          operation   = 'create'
-          sessionName = $SessionName
-          element     = $Record
-          elementType = $Module
+        $params = @{
+          Uri         = $Uri
+          Method      = 'Post'
+          ContentType = $ContentType
+          Body        = @{
+            operation   = 'create'
+            sessionName = $SessionName
+            element     = $Record
+            elementType = $Module
+          }
+          ErrorAction = 'Stop'
         }
-        ErrorAction = 'Stop'
-      }
 
-      $response = Invoke-RestMethod @params
+        $response = Invoke-RestMethod @params
 
-      if ($response.success) {
-        Write-PSFMessage -Level Verbose -Message "Successfully created a new record in $Module."
-        $response.result
-      } else {
-        Write-PSFMessage -Level Warning -Message "Failed to create record: $($response.error.message)"
-        throw $response.error.message
+        if ($response.success)
+        {
+          Write-PSFMessage -Level Verbose -Message "Successfully created a new record in $Module."
+          $response.result
+        }
+        else
+        {
+          Write-PSFMessage -Level Warning -Message "Failed to create record: $($response.error.message)"
+          throw $response.error.message
+        }
       }
-    } catch {
+      else
+      {
+        Write-PSFMessage -Level Verbose -Message "Skipped creation of record in $Module (WhatIf or user declined)"
+        return [PSCustomObject]@{
+          Status  = 'Skipped'
+          Message = 'Operation cancelled by user or WhatIf'
+        }
+      }
+    }
+    catch
+    {
       Write-PSFMessage -Level Error -Message "An error occurred while creating a record: $_"
       throw
     }
   }
 
-  end {
+  end
+  {
     Write-PSFMessage -Level Verbose -Message 'Finished processing New-vtRecord.'
   }
 }

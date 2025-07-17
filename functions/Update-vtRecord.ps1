@@ -1,4 +1,5 @@
-﻿function Update-vtRecord {
+﻿function Update-vtRecord
+{
   <#
     .SYNOPSIS
     Updates an existing record.
@@ -20,7 +21,7 @@
     .OUTPUTS
     Returns the result of the update operation.
     #>
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess)]
   param(
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
@@ -46,7 +47,8 @@
     [string]$Record
   )
   
-  begin {
+  begin
+  {
     Write-PSFMessage -Level Verbose -Message "Starting to update record with ID: $RecordId"
     $updateParams = @{
       operation   = 'update'
@@ -55,27 +57,47 @@
     }
   }
 
-  process {
-    try {
-      Write-PSFMessage -Level Verbose -Message "Sending update request for record ID: $RecordId"
-      $invokeParams = @{
-        Uri         = $Uri
-        Method      = 'POST'
-        Body        = $updateParams
-        ContentType = $ContentType
-        ErrorAction = 'Stop'
-      }
-      $result = Invoke-RestMethod @invokeParams
+  process
+  {
+    try
+    {
+      # ShouldProcess check for record update
+      if ($PSCmdlet.ShouldProcess("Record ID: $RecordId", "Update vTiger record"))
+      {
+        Write-PSFMessage -Level Verbose -Message "Sending update request for record ID: $RecordId"
+        $invokeParams = @{
+          Uri         = $Uri
+          Method      = 'POST'
+          Body        = $updateParams
+          ContentType = $ContentType
+          ErrorAction = 'Stop'
+        }
+        $result = Invoke-RestMethod @invokeParams
 
-      if ($result.success -eq $true) {
-        Write-PSFMessage -Level Verbose -Message "Successfully updated record ID: $RecordId"
-        $result
-      } else {
-        $errorMessage = $result.error.message 
-        Write-PSFMessage -Level Warning -Message "Failed to update record. Error: $errorMessage"
-        $result
+        if ($result.success -eq $true)
+        {
+          Write-PSFMessage -Level Verbose -Message "Successfully updated record ID: $RecordId"
+          $result
+        }
+        else
+        {
+          $errorMessage = $result.error.message 
+          Write-PSFMessage -Level Warning -Message "Failed to update record. Error: $errorMessage"
+          $result
+        }
       }
-    } catch {
+      else
+      {
+        Write-PSFMessage -Level Verbose -Message "Skipped update of record ID: $RecordId (WhatIf or user declined)"
+        return [PSCustomObject]@{
+          success = $false
+          Status  = 'Skipped'
+          Message = 'Operation cancelled by user or WhatIf'
+        }
+      }
+    }
+    catch
+    {
       $errorDetails = @{
         Exception = $_.Exception.Message
         Reason    = $_.CategoryInfo.Reason
@@ -89,7 +111,8 @@
     }
   }
 
-  end {
+  end
+  {
     Write-PSFMessage -Level Verbose -Message "Completed update operation for record ID: $RecordId"
   }
 }

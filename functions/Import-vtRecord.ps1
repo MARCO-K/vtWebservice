@@ -1,4 +1,5 @@
-﻿function Import-vtRecord {
+﻿function Import-vtRecord
+{
   <#
       .SYNOPSIS
       This cmdlet will create a new records in an vtiger module from an object.
@@ -28,7 +29,7 @@
       The cmdlet will output the resultof the create operation.
   #>
 
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess)]
   [OutputType([PSCustomObject[]])]
   param(
     [Parameter(Mandatory)]
@@ -36,7 +37,7 @@
     [string]$Uri,
 
     [Parameter()]
-    [ValidateNotNullOrEmpty()]
+    [ValidateSet('application/x-www-form-urlencoded', 'application/json')]
     [string]$ContentType = 'application/x-www-form-urlencoded',
 
     [Parameter(Mandatory)]
@@ -46,10 +47,13 @@
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [ValidateScript({
-        $validModules = Get-vtListtype -Uri $Uri -SessionName $SessionName
-        if ($_ -in $validModules) {
+        $validModules = Get-vtValidModules -Uri $Uri -SessionName $SessionName
+        if ($_ -in $validModules)
+        {
           $true
-        } else {
+        }
+        else
+        {
           throw "$_ is not a valid module name. Valid modules are: $($validModules -join ', ')"
         }
       })]
@@ -59,47 +63,69 @@
     [ValidateNotNullOrEmpty()]
     [object[]]$Records
   )
-  begin {
+  begin
+  {
     Write-PSFMessage -Level Verbose -Message "Starting to create $($records.count) new record(s)..."
     $results = @()
 
   }
 
-  process {
+  process
+  {
     $results =
-    foreach ($record in $records) {
-      $create = @{
-        operation   = 'create'
-        sessionName = $sessionName
-        element     = $record | ConvertTo-Json
-        elementType = $module
+    foreach ($record in $records)
+    {
+      # ShouldProcess check for record import
+      if ($PSCmdlet.ShouldProcess("Module: $Module", "Import vTiger record"))
+      {
+        $create = @{
+          operation   = 'create'
+          sessionName = $sessionName
+          element     = $record | ConvertTo-Json
+          elementType = $module
+        }
+        try
+        {
+          Write-PSFMessage -Level Verbose -Message "Attempting to create a new record in $Module..."
+          $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $create -ContentType $contenttype
+          
+          if ($result.success)
+          {
+            Write-PSFMessage -Level Verbose -Message "Successfully created a new record in $Module."
+            $result.result
+          }
+          else
+          {
+            Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
+            $result.error.message
+          }
+        }
+        catch
+        {
+          Write-PSFMessage -Level Error -Message "An error occurred while creating a record: $_"
+          $errorDetails = @{
+            Exception = $_.Exception.Message
+            Reason    = $_.CategoryInfo.Reason
+            Target    = $_.CategoryInfo.TargetName
+            Script    = $_.InvocationInfo.ScriptName
+            Line      = $_.InvocationInfo.ScriptLineNumber
+            Column    = $_.InvocationInfo.OffsetInLine
+          }
+          [PSCustomObject]$errorDetails 
+        }
       }
-      try {
-        Write-PSFMessage -Level Verbose -Message "Attempting to create a new record in $Module..."
-        $result = Invoke-RestMethod -Uri $uri -Method 'POST' -Body $create -ContentType $contenttype
-        
-        if ($result.success) {
-          Write-PSFMessage -Level Verbose -Message "Successfully created a new record in $Module."
-          $response.result
-        } else {
-          Write-PSFMessage -Level Warning -Message "Something went wrong... $($result.error.message)"
-          $result.error.message
+      else
+      {
+        Write-PSFMessage -Level Verbose -Message "Skipped import of record in $Module (WhatIf or user declined)"
+        [PSCustomObject]@{
+          Status  = 'Skipped'
+          Message = 'Operation cancelled by user or WhatIf'
         }
-      } catch {
-        Write-PSFMessage -Level Error -Message "An error occurred while creating a record: $_"
-        $errorDetails = @{
-          Exception = $_.Exception.Message
-          Reason    = $_.CategoryInfo.Reason
-          Target    = $_.CategoryInfo.TargetName
-          Script    = $_.InvocationInfo.ScriptName
-          Line      = $_.InvocationInfo.ScriptLineNumber
-          Column    = $_.InvocationInfo.OffsetInLine
-        }
-        [PSCustomObject]$errorDetails 
       }
     }
   }
-  end {
+  end
+  {
     Write-PSFMessage -Level Verbose -Message 'Output the newly created record...'
     $results
   }

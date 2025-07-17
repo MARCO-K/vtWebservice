@@ -1,4 +1,5 @@
-﻿function Remove-vtRecord {
+﻿function Remove-vtRecord
+{
   <#
 .SYNOPSIS
 Removes one or more records from a vtiger module based on their IDs.
@@ -35,7 +36,7 @@ An array of PSCustomObjects, each containing the ID of the processed record, the
 Ensure you have an active session and appropriate permissions before using this function.
 #>
 
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess)]
   [OutputType([PSCustomObject[]])]
   param(
     [Parameter(Mandatory)]
@@ -55,57 +56,80 @@ Ensure you have an active session and appropriate permissions before using this 
     [string[]]$RecordIds
   )
 
-  begin {
+  begin
+  {
     Write-PSFMessage -Level Verbose -Message "Starting to delete record(s)..."
     $results = @()
   }
 
-  process {
-    foreach ($recordId in $RecordIds) {
-      try {
-        Write-PSFMessage -Level Verbose -Message "Attempting to delete record with ID: $recordId"
+  process
+  {
+    foreach ($recordId in $RecordIds)
+    {
+      try
+      {
+        # ShouldProcess check for destructive operation
+        if ($PSCmdlet.ShouldProcess("Record ID: $recordId", "Remove vTiger Record"))
+        {
+          Write-PSFMessage -Level Verbose -Message "Attempting to delete record with ID: $recordId"
 
-        $params = @{
-          Uri         = $Uri
-          Method      = 'Post'
-          ContentType = $ContentType
-          Body        = @{
-            operation   = 'delete'
-            sessionName = $SessionName
-            id          = $recordId
+          $params = @{
+            Uri         = $Uri
+            Method      = 'Post'
+            ContentType = $ContentType
+            Body        = @{
+              operation   = 'delete'
+              sessionName = $SessionName
+              id          = $recordId
+            }
+            ErrorAction = 'Stop'
           }
-          ErrorAction = 'Stop'
+
+          $response = Invoke-RestMethod @params
+
+          if ($response.success)
+          {
+            Write-PSFMessage -Level Verbose -Message "Successfully deleted record with ID: $recordId"
+            $results += [PSCustomObject]@{
+              ID     = $recordId
+              Status = $response.result.status
+            }
+          }
+          else
+          {
+            Write-PSFMessage -Level Warning -Message "Failed to delete record with ID $recordId : $($response.error.message)"
+            $results += [PSCustomObject]@{
+              ID     = $recordId
+              Status = 'Failed'
+              Error  = $response.error.message
+            }
+          }
         }
-
-        $response = Invoke-RestMethod @params
-
-        if ($response.success) {
-          Write-PSFMessage -Level Verbose -Message "Successfully deleted record with ID: $recordId"
+        else
+        {
+          Write-PSFMessage -Level Verbose -Message "Skipped deletion of record with ID: $recordId (WhatIf or user declined)"
           $results += [PSCustomObject]@{
             ID     = $recordId
-            Status = $response.result.status
-          }
-        } else {
-          Write-PSFMessage -Level Warning -Message "Failed to delete record with ID $recordId : $($response.error.message)"
-          $results += [PSCustomObject]@{
-            ID     = $recordId
-            Status = 'Failed'
-            Error  = $response.error.message
+            Status = 'Skipped'
+            Error  = 'Operation cancelled by user or WhatIf'
           }
         }
-      } catch {
+      }
+      catch
+      {
         Write-PSFMessage -Level Error -Message "An error occurred while deleting record with ID $recordId : $_"
         $Errormessage = [PSCustomObject]@{
           ID     = $recordId
           Status = 'Error'
           Error  = $_.Exception.Message
         }
-        $Errormessage
+        $results += $Errormessage
       }
     }
   }
 
-  end {
+  end
+  {
     Write-PSFMessage -Level Verbose -Message 'Finished processing all records.'
     $results
   }

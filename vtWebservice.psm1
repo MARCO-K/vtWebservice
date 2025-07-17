@@ -45,5 +45,13 @@ foreach ($function in (Get-ChildItem "$ModuleRoot\functions" -Recurse -File -Fil
 }
 #endregion Load functions
 
+#region Load custom types
+if (Test-Path "$ModuleRoot\types") {
+    foreach ($typeFile in (Get-ChildItem "$ModuleRoot\types" -Recurse -File -Filter "*.ps1")) {
+        . Import-ModuleFile -Path $typeFile.FullName
+    }
+}
+#endregion Load custom types
+
 # Perform Actions after loading the module contents
 #. Import-ModuleFile -Path "$ModuleRoot\internal\scripts\postimport.ps1"

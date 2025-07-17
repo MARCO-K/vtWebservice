@@ -1,4 +1,5 @@
-﻿function Get-vtFieldlist {
+﻿function Get-vtFieldlist
+{
   <#
   .SYNOPSIS
   Gets all fields of a vtiger module.
@@ -32,7 +33,8 @@
     [ValidateNotNullOrEmpty()]
     [string]$Uri,
 
-    [ValidateNotNullOrEmpty()]
+    [Parameter()]
+    [ValidateSet('application/x-www-form-urlencoded', 'application/json')]
     [string]$ContentType = 'application/x-www-form-urlencoded',
 
     [Parameter(Mandatory)]
@@ -42,16 +44,18 @@
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [ValidateScript({
-        $validModules = Get-vtListtype -Uri $Uri -SessionName $SessionName
-        if ($_ -in $validModules) {
+        $validModules = Get-vtValidModules -Uri $Uri -SessionName $SessionName
+        if ($_ -in $validModules)
+        {
           return $true
         }
-        throw "'$_' is not a valid module name. Valid modules are: $($validModules -join ', ')"
+        throw "Module '$_' not found. Available modules: $($validModules -join ', ')"
       })]
     [string]$Module
   )
 
-  begin {
+  begin
+  {
     Write-PSFMessage -Level Verbose -Message "Starting to get field list for module '$Module'..."
     $describeParams = @{
       sessionName = $SessionName
@@ -60,8 +64,10 @@
     }
   }
 
-  process {
-    try {
+  process
+  {
+    try
+    {
       Write-PSFMessage -Level Verbose -Message "Retrieving field list for module '$Module'..."
       $invokeParams = @{
         Uri         = $Uri
@@ -72,27 +78,38 @@
       }
       $result = Invoke-RestMethod @invokeParams
 
-      if ($result.success -eq $true) {
+      if ($result.success -eq $true)
+      {
         Write-PSFMessage -Level Verbose -Message "Successfully retrieved field list for module '$Module'."
         $fieldlist = $result.result.fields | ForEach-Object {
           [PSCustomObject]@{
-            Name      = $_.Name
-            Label     = $_.label
-            Datatype  = $_.type.name
-            Mandatory = $_.mandatory
+            PSTypeName = 'vtWebservice.Field'
+            Name       = $_.Name
+            Label      = $_.label
+            Type       = $_.type.name
+            Mandatory  = $_.mandatory
+            Editable   = $_.editable
+            Module     = $Module
           }
         }
         $fieldlist
-      } else {
-        $errorMessage = if ($result.error -and $result.error.PSObject.Properties['message']) { 
+      }
+      else
+      {
+        $errorMessage = if ($result.error -and $result.error.PSObject.Properties['message'])
+        { 
           $result.error.message 
-        } else { 
+        }
+        else
+        { 
           "Unknown error occurred" 
         }
         Write-PSFMessage -Level Warning -Message "Failed to retrieve field list. Error: $errorMessage"
         throw $errorMessage
       }
-    } catch {
+    }
+    catch
+    {
       $errorDetails = @{
         Exception = $_.Exception.Message
         Reason    = $_.CategoryInfo.Reason
@@ -106,7 +123,8 @@
     }
   }
 
-  end {
+  end
+  {
     Write-PSFMessage -Level Verbose -Message "Completed retrieving field list for module '$Module'."
   }
 }
