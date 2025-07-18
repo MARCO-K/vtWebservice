@@ -42,7 +42,6 @@
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [ValidatePattern('^[a-zA-Z0-9_\s\.,;''"\(\)\-\+\*\=\<\>\!\&\|\%]+$')]
     [string]$QueryString
   )
 
