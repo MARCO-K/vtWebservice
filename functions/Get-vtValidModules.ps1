@@ -1,4 +1,5 @@
-function Get-vtValidModules {
+function Get-vtValidModules
+{
   <#
   .SYNOPSIS
   Gets valid vTiger modules with caching support for improved performance.
@@ -42,7 +43,8 @@ function Get-vtValidModules {
   )
 
   # Initialize cache if it doesn't exist
-  if (-not $script:ModuleCache) {
+  if (-not $script:ModuleCache)
+  {
     $script:ModuleCache = @{}
   }
 
@@ -50,29 +52,35 @@ function Get-vtValidModules {
   $now = Get-Date
 
   # Check if we have valid cached data
-  if (-not $NoCache -and $script:ModuleCache.ContainsKey($cacheKey)) {
+  if (-not $NoCache -and $script:ModuleCache.ContainsKey($cacheKey))
+  {
     $cachedData = $script:ModuleCache[$cacheKey]
-    if ($cachedData.Timestamp -and (($now - $cachedData.Timestamp).TotalMinutes -lt $CacheTimeout)) {
+    if ($cachedData.Timestamp -and (($now - $cachedData.Timestamp).TotalMinutes -lt $CacheTimeout))
+    {
       Write-PSFMessage -Level Verbose -Message "Returning cached module list (age: $([math]::Round(($now - $cachedData.Timestamp).TotalMinutes, 1)) minutes)"
       return $cachedData.Modules
     }
   }
 
-  try {
+  try
+  {
     Write-PSFMessage -Level Verbose -Message "Fetching fresh module list from API"
     $modules = Get-vtListtype -Uri $Uri -SessionName $SessionName -ContentType 'application/x-www-form-urlencoded'
     
     # Cache the result
     $script:ModuleCache[$cacheKey] = @{
-      Modules = $modules
+      Modules   = $modules
       Timestamp = $now
     }
     
     return $modules
-  } catch {
+  }
+  catch
+  {
     Write-PSFMessage -Level Warning -Message "Failed to retrieve module list: $($_.Exception.Message)"
     # Return cached data if available, even if expired
-    if ($script:ModuleCache.ContainsKey($cacheKey)) {
+    if ($script:ModuleCache.ContainsKey($cacheKey))
+    {
       Write-PSFMessage -Level Warning -Message "Using expired cached module list due to API failure"
       return $script:ModuleCache[$cacheKey].Modules
     }
@@ -80,5 +88,4 @@ function Get-vtValidModules {
   }
 }
 
-# Initialize the module cache at module level
-$script:ModuleCache = @{}
+

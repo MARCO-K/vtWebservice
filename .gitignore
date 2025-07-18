@@ -35,6 +35,7 @@ $RECYCLE.BIN/
 *.tmp
 *.bak
 *.swp
+*sample*.ps1
 
 # Secrets and Credentials (as a safeguard)
 *secret*.ps1

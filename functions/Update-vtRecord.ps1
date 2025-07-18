@@ -77,6 +77,13 @@
         if ($result.success -eq $true)
         {
           Write-PSFMessage -Level Verbose -Message "Successfully updated record ID: $RecordId"
+          # Add custom type to the updated record if it contains record data
+          if ($result.result)
+          {
+            $record = $result.result
+            $record.PSObject.TypeNames.Insert(0, 'vtWebservice.Record')
+            $result.result = $record
+          }
           $result
         }
         else

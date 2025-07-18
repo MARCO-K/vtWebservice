@@ -1,7 +1,8 @@
 $script:ModuleRoot = $PSScriptRoot
 
 #region Helper function
-function Import-ModuleFile {
+function Import-ModuleFile
+{
     <#
 		.SYNOPSIS
 			Loads files into the module on module import.
@@ -40,14 +41,17 @@ function Import-ModuleFile {
 #	. Import-ModuleFile -Path $function.FullName
 #}
 
-foreach ($function in (Get-ChildItem "$ModuleRoot\functions" -Recurse -File -Filter "*.ps1")) {
+foreach ($function in (Get-ChildItem "$ModuleRoot\functions" -Recurse -File -Filter "*.ps1"))
+{
     . Import-ModuleFile -Path $function.FullName
 }
 #endregion Load functions
 
 #region Load custom types
-if (Test-Path "$ModuleRoot\types") {
-    foreach ($typeFile in (Get-ChildItem "$ModuleRoot\types" -Recurse -File -Filter "*.ps1")) {
+if (Test-Path "$ModuleRoot\types")
+{
+    foreach ($typeFile in (Get-ChildItem "$ModuleRoot\types" -Recurse -File -Filter "*.ps1"))
+    {
         . Import-ModuleFile -Path $typeFile.FullName
     }
 }
@@ -55,3 +59,6 @@ if (Test-Path "$ModuleRoot\types") {
 
 # Perform Actions after loading the module contents
 #. Import-ModuleFile -Path "$ModuleRoot\internal\scripts\postimport.ps1"
+
+# Initialize the module cache at module level
+$script:ModuleCache = @{}

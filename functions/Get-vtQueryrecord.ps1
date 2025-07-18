@@ -1,4 +1,5 @@
-﻿function Get-vtQueryrecord {
+﻿function Get-vtQueryrecord
+{
   <#
     .SYNOPSIS
     Retrieves one or more records matching filtering field conditions from vtiger CRM.
@@ -32,9 +33,8 @@
     [ValidateNotNullOrEmpty()]
     [string]$Uri,
 
-    [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string]$ContentType,
+    [string]$ContentType = 'application/x-www-form-urlencoded',
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
@@ -46,7 +46,8 @@
     [string]$QueryString
   )
 
-  begin {
+  begin
+  {
     Write-PSFMessage -Level Verbose -Message 'Starting to query records...'
     $queryParams = @{
       sessionName = $SessionName
@@ -55,8 +56,10 @@
     }
   }
 
-  process {
-    try {
+  process
+  {
+    try
+    {
       Write-PSFMessage -Level Verbose -Message "Querying records with: $QueryString"
       $invokeParams = @{
         Uri         = $Uri
@@ -67,21 +70,37 @@
       }
       $result = Invoke-RestMethod @invokeParams
 
-      if ($result.success -eq $true) {
+      if ($result.success -eq $true)
+      {
         Write-PSFMessage -Level Verbose -Message 'Query executed successfully.'
-        $result.result
-      } elseif ($result.success -eq $false) {
-        $errorMessage = if ($result.error.PSObject.Properties['message']) { 
+        # Add custom type to each record
+        $records = $result.result | ForEach-Object {
+          $record = $_
+          $record.PSObject.TypeNames.Insert(0, 'vtWebservice.Record')
+          $record
+        }
+        $records
+      }
+      elseif ($result.success -eq $false)
+      {
+        $errorMessage = if ($result.error.PSObject.Properties['message'])
+        { 
           $result.error.message 
-        } else { 
+        }
+        else
+        { 
           "Unknown error occurred during query" 
         }
         Write-PSFMessage -Level Warning -Message "Query failed. Error: $errorMessage"
         throw $errorMessage
-      } else {
+      }
+      else
+      {
         throw "Unexpected response from server"
       }
-    } catch {
+    }
+    catch
+    {
       $errorDetails = @{
         Exception = $_.Exception.Message
         Reason    = $_.CategoryInfo.Reason
@@ -95,7 +114,8 @@
     }
   }
 
-  end {
+  end
+  {
     Write-PSFMessage -Level Verbose -Message 'Query process completed.'
   }
 }

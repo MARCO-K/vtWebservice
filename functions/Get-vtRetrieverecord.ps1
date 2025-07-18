@@ -62,7 +62,13 @@
         $result = Invoke-RestMethod -Uri $uri -Method 'GET' -Body $retrieve -ContentType $contenttype
 
         if ($result.success -eq $true) {
-          $result.result
+          # Add custom type to each record
+          $records = $result.result | ForEach-Object {
+            $record = $_
+            $record.PSObject.TypeNames.Insert(0, 'vtWebservice.Record')
+            $record
+          }
+          $records
           Write-PSFMessage -Level Verbose -Message "Successfully retrieved record for ID: $recordId"
         } else {
           $errorMessage = if ($result.error.PSObject.Properties['message']) { 

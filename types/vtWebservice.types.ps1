@@ -128,4 +128,563 @@ Update-TypeData -TypeName 'vtWebservice.Field' -MemberType ScriptProperty -Membe
     return $this.GetCategory()
 } -Force
 
+#region Events-specific methods for vtWebservice.Field
+
+# Check if field is Events-specific
+Update-TypeData -TypeName 'vtWebservice.Field' -MemberType ScriptMethod -MemberName 'IsEventField' -Value {
+    $eventFields = @(
+        'subject', 'date_start', 'time_start', 'time_end', 'due_date', 'eventstatus', 
+        'activitytype', 'taskpriority', 'sendnotification', 'location', 'visibility', 
+        'duration_hours', 'recurringtype', 'notime', 'reminder_time', 'parent_id'
+    )
+    return $eventFields -contains $this.Name
+} -Force
+
+# Get Events field category
+Update-TypeData -TypeName 'vtWebservice.Field' -MemberType ScriptMethod -MemberName 'GetEventFieldCategory' -Value {
+    if (-not $this.IsEventField()) { return 'Not an Event field' }
+    
+    switch ($this.Name)
+    {
+        { $_ -in @('subject', 'description') } { return 'Basic Info' }
+        { $_ -in @('date_start', 'time_start', 'time_end', 'due_date', 'duration_hours', 'notime') } { return 'Timing' }
+        { $_ -in @('eventstatus', 'activitytype', 'taskpriority') } { return 'Status' }
+        { $_ -in @('location', 'visibility') } { return 'Details' }
+        { $_ -in @('recurringtype', 'reminder_time', 'sendnotification') } { return 'Scheduling' }
+        { $_ -in @('assigned_user_id', 'parent_id') } { return 'Relationships' }
+        default { return 'Other' }
+    }
+} -Force
+
+# Check if field is timing-related
+Update-TypeData -TypeName 'vtWebservice.Field' -MemberType ScriptMethod -MemberName 'IsTimingField' -Value {
+    $timingFields = @('date_start', 'time_start', 'time_end', 'due_date', 'duration_hours', 'notime')
+    return $timingFields -contains $this.Name
+} -Force
+
+# Check if field is status-related
+Update-TypeData -TypeName 'vtWebservice.Field' -MemberType ScriptMethod -MemberName 'IsStatusField' -Value {
+    $statusFields = @('eventstatus', 'activitytype', 'taskpriority')
+    return $statusFields -contains $this.Name
+} -Force
+
+#endregion Events-specific methods for vtWebservice.Field
+
+# Add custom methods to vtWebservice.Record objects
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetModule' -Value {
+    # Extract module from the ID (format: ModuleId x RecordId)
+    if ($this.id -match '^(\d+)x\d+$')
+    {
+        $moduleId = $matches[1]
+        # Complete module mappings based on vTiger system
+        $moduleMap = @{
+            '1'  = 'Dashboard'
+            '2'  = 'Potentials'
+            '3'  = 'Home'
+            '4'  = 'Contacts'
+            '6'  = 'Accounts'
+            '7'  = 'Leads'
+            '8'  = 'Documents'
+            '9'  = 'Calendar'
+            '10' = 'Emails'
+            '11' = 'Accounts'  # Alternative Accounts module ID
+            '12' = 'Contacts'  # Alternative Contacts module ID
+            '13' = 'HelpDesk'
+            '14' = 'Products'
+            '15' = 'Faq'
+            '16' = 'Events'
+            '17' = 'Vendors'
+            '18' = 'Events'  # Actual Events module ID
+            '19' = 'PriceBooks'
+            '20' = 'Quotes'
+            '21' = 'PurchaseOrder'
+            '22' = 'SalesOrder'
+            '23' = 'Invoice'
+            '24' = 'Rss'
+            '25' = 'Reports'
+            '26' = 'Campaigns'
+            '27' = 'Portal'
+            '28' = 'Webmails'
+            '29' = 'Users'
+            '30' = 'MailManager'
+            '31' = 'WSAPP'
+            '32' = 'Import'
+            '33' = 'Mobile'
+            '34' = 'Services'
+            '35' = 'ModTracker'
+            '36' = 'ServiceContracts'
+            '37' = 'PBXManager'
+            '38' = 'Assets'
+            '39' = 'EmailTemplates'
+            '40' = 'Google'
+            '41' = 'ModComments'
+        }
+        $result = $moduleMap[$moduleId]
+        if ($result) { return $result } else { return 'Unknown' }
+    }
+    return 'Unknown'
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetRecordId' -Value {
+    # Extract just the record ID from the full ID (format: ModuleId x RecordId)
+    if ($this.id -match '^\d+x(\d+)$')
+    {
+        return $matches[1]
+    }
+    return $this.id
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetModuleId' -Value {
+    # Extract module ID from the full ID (format: ModuleId x RecordId)
+    if ($this.id -match '^(\d+)x\d+$')
+    {
+        return $matches[1]
+    }
+    return $null
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'IsActive' -Value {
+    # Check if record is active (not deleted/inactive)
+    # This assumes inactive records might have a deleted flag or similar
+    return -not ($this.deleted -eq 'true' -or $this.deleted -eq $true)
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetAge' -Value {
+    # Calculate age of record in days
+    if ($this.createdtime)
+    {
+        try
+        {
+            $created = [DateTime]::Parse($this.createdtime)
+            return ([DateTime]::Now - $created).Days
+        }
+        catch
+        {
+            return $null
+        }
+    }
+    return $null
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetLastModified' -Value {
+    # Get how long ago the record was last modified
+    if ($this.modifiedtime)
+    {
+        try
+        {
+            $modified = [DateTime]::Parse($this.modifiedtime)
+            $span = [DateTime]::Now - $modified
+            if ($span.Days -gt 0)
+            {
+                return "$($span.Days) days ago"
+            }
+            elseif ($span.Hours -gt 0)
+            {
+                return "$($span.Hours) hours ago"
+            }
+            else
+            {
+                return "$($span.Minutes) minutes ago"
+            }
+        }
+        catch
+        {
+            return 'Unknown'
+        }
+    }
+    return 'Unknown'
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetOwner' -Value {
+    # Get the assigned user (owner) of the record
+    $owner = $this.assigned_user_id
+    if ($owner -and $owner -ne '')
+    {
+        return $owner
+    }
+    return 'Unassigned'
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'HasField' -Value {
+    param([string]$FieldName)
+    return $this.PSObject.Properties.Name -contains $FieldName
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetField' -Value {
+    param([string]$FieldName)
+    if ($this.HasField($FieldName))
+    {
+        return $this.$FieldName
+    }
+    return $null
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetNonEmptyFields' -Value {
+    # Get all fields that have values
+    $fields = @{
+    }
+    foreach ($prop in $this.PSObject.Properties)
+    {
+        if ($prop.Value -and $prop.Value -ne '' -and $prop.Value -ne '0')
+        {
+            $fields[$prop.Name] = $prop.Value
+        }
+    }
+    return $fields
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEmailFields' -Value {
+    # Get all email fields from the record
+    $emailFields = @{
+    }
+    foreach ($prop in $this.PSObject.Properties)
+    {
+        if ($prop.Name -like '*email*' -and $prop.Value)
+        {
+            $emailFields[$prop.Name] = $prop.Value
+        }
+    }
+    return $emailFields
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetPhoneFields' -Value {
+    # Get all phone fields from the record
+    $phoneFields = @{
+    }
+    foreach ($prop in $this.PSObject.Properties)
+    {
+        if ($prop.Name -like '*phone*' -and $prop.Value)
+        {
+            $phoneFields[$prop.Name] = $prop.Value
+        }
+    }
+    return $phoneFields
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'ToString' -Value {
+    $module = $this.GetModule()
+    $recordId = $this.GetRecordId()
+    
+    # Try to find a meaningful display name
+    $displayName = $this.lastname
+    if (-not $displayName) { $displayName = $this.firstname }
+    if (-not $displayName) { $displayName = $this.accountname }
+    if (-not $displayName) { $displayName = $this.subject }
+    if (-not $displayName) { $displayName = $this.potentialname }
+    if (-not $displayName) { $displayName = $this.id }
+    
+    return "[$module] $displayName ($recordId)"
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetSummary' -Value {
+    $summary = [PSCustomObject]@{
+        ID             = $this.id
+        Module         = $this.GetModule()
+        RecordId       = $this.GetRecordId()
+        Owner          = $this.GetOwner()
+        Created        = $this.createdtime
+        Modified       = $this.modifiedtime
+        Age            = $this.GetAge()
+        LastModified   = $this.GetLastModified()
+        FieldCount     = $this.PSObject.Properties.Count
+        NonEmptyFields = $this.GetNonEmptyFields().Count
+    }
+    return $summary
+} -Force
+
+# Add custom properties to vtWebservice.Record
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptProperty -MemberName 'Module' -Value {
+    return $this.GetModule()
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptProperty -MemberName 'RecordId' -Value {
+    return $this.GetRecordId()
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptProperty -MemberName 'Owner' -Value {
+    return $this.GetOwner()
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptProperty -MemberName 'Age' -Value {
+    return $this.GetAge()
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptProperty -MemberName 'LastModified' -Value {
+    return $this.GetLastModified()
+} -Force
+
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptProperty -MemberName 'DisplayName' -Value {
+    # Try to find the most appropriate display name based on module
+    $module = $this.GetModule()
+    switch ($module)
+    {
+        'Contacts' { return "$($this.firstname) $($this.lastname)".Trim() }
+        'Accounts' { return $this.accountname }
+        'Leads' { return "$($this.firstname) $($this.lastname)".Trim() }
+        'Products' { return $this.productname }
+        'HelpDesk' { return $this.ticket_title }
+        'Campaigns' { return $this.campaignname }
+        'Documents' { return $this.title }
+        'Quotes' { return $this.subject }
+        'Invoice' { return $this.subject }
+        'SalesOrder' { return $this.subject }
+        'PurchaseOrder' { return $this.subject }
+        'Events' { return $this.subject }
+        'Potentials' { return $this.potentialname }
+        'Vendors' { return $this.vendorname }
+        'Assets' { return $this.assetname }
+        'Services' { return $this.servicename }
+        'ServiceContracts' { return $this.subject }
+        'Faq' { return $this.question }
+        'PriceBooks' { return $this.bookname }
+        'EmailTemplates' { return $this.subject }
+        default { return $this.id }
+    }
+} -Force
+
+#region Events-specific custom methods for vtWebservice.Record
+
+# Check if the record is an Event
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'IsEvent' -Value {
+    return $this.GetModule() -eq 'Events'
+} -Force
+
+# Check if the event is all-day
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'IsAllDayEvent' -Value {
+    if (-not $this.IsEvent()) { return $false }
+    
+    # Events without time_start and time_end are typically all-day
+    return (-not $this.time_start -or $this.time_start -eq '') -and (-not $this.time_end -or $this.time_end -eq '')
+} -Force
+
+# Get the event duration in minutes
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEventDuration' -Value {
+    if (-not $this.IsEvent()) { return 0 }
+    
+    # If duration_hours is specified and reasonable, convert to minutes
+    if ($this.duration_hours -and $this.duration_hours -ne '0')
+    {
+        try
+        {
+            $hours = [double]$this.duration_hours
+            # Only use duration_hours if it's reasonable (less than 24 hours)
+            if ($hours -gt 0 -and $hours -le 24)
+            {
+                return [int]($hours * 60)
+            }
+        }
+        catch
+        {
+            # Continue to time calculation
+        }
+    }
+    
+    # Otherwise try to calculate from start and end times
+    if ($this.time_start -and $this.time_end -and $this.time_start -ne $this.time_end)
+    {
+        try
+        {
+            # Parse time format HH:mm or HH:mm:ss
+            $startTime = [TimeSpan]::Parse($this.time_start)
+            $endTime = [TimeSpan]::Parse($this.time_end)
+            
+            # Calculate duration
+            $duration = $endTime - $startTime
+            
+            # If duration is negative or unreasonably long, it's likely bad data
+            if ($duration.TotalMinutes -lt 0 -or $duration.TotalMinutes -gt 1440)
+            {
+                return 0  # Return 0 for invalid duration
+            }
+            
+            return [int]$duration.TotalMinutes
+        }
+        catch
+        {
+            return 0
+        }
+    }
+    
+    return 0
+} -Force
+
+# Get the event status with friendly names
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEventStatus' -Value {
+    if (-not $this.IsEvent()) { return 'Not an Event' }
+    
+    $status = $this.eventstatus
+    if (-not $status) { return 'Unknown' }
+    
+    # Map German status names to English (adjust based on your vTiger setup)
+    switch ($status)
+    {
+        'Held' { return 'Completed' }
+        'Geplant' { return 'Planned' }
+        'Abgehalten' { return 'Held' }
+        'Abgesagt' { return 'Cancelled' }
+        'Verschoben' { return 'Postponed' }
+        default { return $status }
+    }
+} -Force
+
+# Get the activity type with friendly names
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetActivityType' -Value {
+    if (-not $this.IsEvent()) { return 'Not an Event' }
+    
+    $type = $this.activitytype
+    if (-not $type) { return 'Unknown' }
+    
+    # Map German activity types to English (adjust based on your vTiger setup)
+    switch ($type)
+    {
+        'Aufgabe' { return 'Task' }
+        'Anruf' { return 'Call' }
+        'Meeting' { return 'Meeting' }
+        'Email' { return 'Email' }
+        default { return $type }
+    }
+} -Force
+
+# Check if the event is recurring
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'IsRecurring' -Value {
+    if (-not $this.IsEvent()) { return $false }
+    
+    return $this.recurringtype -and $this.recurringtype -ne '' -and $this.recurringtype -ne 'None'
+} -Force
+
+# Get the event date and time formatted
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEventDateTime' -Value {
+    if (-not $this.IsEvent()) { return 'Not an Event' }
+    
+    $dateStr = $this.date_start
+    if (-not $dateStr) { return 'No date' }
+    
+    try
+    {
+        $date = [DateTime]::Parse($dateStr)
+        $dateFormatted = $date.ToString('yyyy-MM-dd')
+        
+        if ($this.IsAllDayEvent())
+        {
+            return "$dateFormatted (All Day)"
+        }
+        
+        $timeStart = $this.time_start
+        $timeEnd = $this.time_end
+        
+        if ($timeStart)
+        {
+            $timeStr = $timeStart
+            if ($timeEnd -and $timeEnd -ne $timeStart)
+            {
+                $timeStr += " - $timeEnd"
+            }
+            return "$dateFormatted $timeStr"
+        }
+        
+        return $dateFormatted
+    }
+    catch
+    {
+        return $dateStr
+    }
+} -Force
+
+# Check if the event is overdue (for tasks/events that aren't completed)
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'IsOverdue' -Value {
+    if (-not $this.IsEvent()) { return $false }
+    
+    $status = $this.eventstatus
+    if ($status -eq 'Held' -or $status -eq 'Completed') { return $false }
+    
+    if ($this.due_date)
+    {
+        try
+        {
+            $dueDate = [DateTime]::Parse($this.due_date)
+            return $dueDate -lt [DateTime]::Now
+        }
+        catch
+        {
+            return $false
+        }
+    }
+    
+    if ($this.date_start)
+    {
+        try
+        {
+            $startDate = [DateTime]::Parse($this.date_start)
+            return $startDate -lt [DateTime]::Now.Date
+        }
+        catch
+        {
+            return $false
+        }
+    }
+    
+    return $false
+} -Force
+
+# Get event priority with friendly names
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEventPriority' -Value {
+    if (-not $this.IsEvent()) { return 'Not an Event' }
+    
+    $priority = $this.taskpriority
+    if (-not $priority) { return 'Normal' }
+    
+    # Map priority values to friendly names
+    switch ($priority)
+    {
+        'High' { return 'High' }
+        'Medium' { return 'Medium' }
+        'Low' { return 'Low' }
+        default { return $priority }
+    }
+} -Force
+
+# Get event visibility
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEventVisibility' -Value {
+    if (-not $this.IsEvent()) { return 'Not an Event' }
+    
+    $visibility = $this.visibility
+    if (-not $visibility) { return 'Public' }
+    
+    return $visibility
+} -Force
+
+# Get event location
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEventLocation' -Value {
+    if (-not $this.IsEvent()) { return 'Not an Event' }
+    
+    $location = $this.location
+    if (-not $location -or $location -eq '') { return 'No location specified' }
+    
+    return $location
+} -Force
+
+# Get event summary with key information
+Update-TypeData -TypeName 'vtWebservice.Record' -MemberType ScriptMethod -MemberName 'GetEventSummary' -Value {
+    if (-not $this.IsEvent()) { return 'Not an Event' }
+    
+    $summary = [PSCustomObject]@{
+        Subject      = $this.subject
+        DateTime     = $this.GetEventDateTime()
+        Status       = $this.GetEventStatus()
+        ActivityType = $this.GetActivityType()
+        Duration     = "$($this.GetEventDuration()) minutes"
+        Priority     = $this.GetEventPriority()
+        Location     = $this.GetEventLocation()
+        IsAllDay     = $this.IsAllDayEvent()
+        IsRecurring  = $this.IsRecurring()
+        IsOverdue    = $this.IsOverdue()
+        Visibility   = $this.GetEventVisibility()
+        Owner        = $this.GetOwner()
+    }
+    
+    return $summary
+} -Force
+
+#endregion Events-specific custom methods
+
 Write-PSFMessage -Level Verbose -Message "Custom type definitions loaded for vtWebservice module"

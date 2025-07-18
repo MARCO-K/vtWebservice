@@ -1,4 +1,5 @@
-﻿function Get-vtListtype {
+﻿function Get-vtListtype
+{
   <#
   .SYNOPSIS
   Retrieves all available list types from vtiger.
@@ -29,7 +30,9 @@
     [ValidateNotNullOrEmpty()]
     [string]$Uri,
 
+    [Parameter()]
     [ValidateNotNullOrEmpty()]
+    [ValidateSet('application/x-www-form-urlencoded', 'application/json')]
     [string]$ContentType = 'application/x-www-form-urlencoded',
 
     [Parameter(Mandatory)]
@@ -37,7 +40,8 @@
     [string]$SessionName
   )
 
-  begin {
+  begin
+  {
     Write-PSFMessage -Level Verbose -Message 'Starting to retrieve list types...'
     $listParams = @{
       operation   = 'listtypes'
@@ -45,8 +49,10 @@
     }
   }
 
-  process {
-    try { 
+  process
+  {
+    try
+    { 
       Write-PSFMessage -Level Verbose -Message 'Sending request to retrieve list types...'
       $invokeParams = @{
         Uri         = $Uri
@@ -57,19 +63,27 @@
       }
       $result = Invoke-RestMethod @invokeParams
 
-      if ($result.success -eq $true) { 
+      if ($result.success -eq $true)
+      { 
         Write-PSFMessage -Level Verbose -Message 'Successfully retrieved list types.'
         $result.result.types
-      } else {
-        $errorMessage = if ($result.error.PSObject.Properties['message']) { 
+      }
+      else
+      {
+        $errorMessage = if ($result.error.PSObject.Properties['message'])
+        { 
           $result.error.message 
-        } else { 
+        }
+        else
+        { 
           "Unknown error occurred" 
         }
         Write-PSFMessage -Level Warning -Message "Failed to retrieve list types. Error: $errorMessage"
         throw $errorMessage
       }
-    } catch {
+    }
+    catch
+    {
       $errorDetails = @{
         Exception = $_.Exception.Message
         Reason    = $_.CategoryInfo.Reason
@@ -83,7 +97,8 @@
     }
   }
 
-  end {
+  end
+  {
     Write-PSFMessage -Level Verbose -Message 'Completed retrieving list types.'
   }
 }

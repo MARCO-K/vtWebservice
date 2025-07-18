@@ -15,9 +15,14 @@
       .PARAMETER module
       The name of the module where the new record will be created.
       .PARAMETER record
-      The JSON data of the for record.
+      A PowerShell object (e.g., a hashtable or PSCustomObject) containing the record data. The function will convert this to JSON automatically.
       .EXAMPLE
-      New-vtRecordEntry -uri $uri -contenttype $contenttype -sessionName $sessionName -module $module -record $record
+      $newContact = @{
+          lastname = 'Doe'
+          firstname = 'John'
+          email = 'john.doe@example.com'
+      }
+      New-vtRecord -Uri $uri -SessionName $sessionName -Module 'Contacts' -Record $newContact
       .OUTPUTS
       The cmdlet will output the resultof the create operation.
   #>
@@ -53,18 +58,7 @@
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [ValidateScript({
-        try
-        {
-          $null = $_ | ConvertFrom-Json
-          $true
-        }
-        catch
-        {
-          throw "Invalid JSON: $_"
-        }
-      })]
-    [string]$Record
+    [object]$Record
   )
 
   begin
@@ -88,7 +82,7 @@
           Body        = @{
             operation   = 'create'
             sessionName = $SessionName
-            element     = $Record
+            element     = $Record | ConvertTo-Json
             elementType = $Module
           }
           ErrorAction = 'Stop'
@@ -99,7 +93,10 @@
         if ($response.success)
         {
           Write-PSFMessage -Level Verbose -Message "Successfully created a new record in $Module."
-          $response.result
+          # Add custom type to the created record
+          $record = $response.result
+          $record.PSObject.TypeNames.Insert(0, 'vtWebservice.Record')
+          $record
         }
         else
         {
@@ -118,8 +115,16 @@
     }
     catch
     {
-      Write-PSFMessage -Level Error -Message "An error occurred while creating a record: $_"
-      throw
+      $errorDetails = @{
+        Exception = $_.Exception.Message
+        Reason    = $_.CategoryInfo.Reason
+        Target    = $_.CategoryInfo.TargetName
+        Script    = $_.InvocationInfo.ScriptName
+        Line      = $_.InvocationInfo.ScriptLineNumber
+        Column    = $_.InvocationInfo.OffsetInLine
+      }
+      Write-PSFMessage -Level Error -Message "An error occurred while creating a record." -ErrorRecord $_
+      throw [PSCustomObject]$errorDetails
     }
   }
 
